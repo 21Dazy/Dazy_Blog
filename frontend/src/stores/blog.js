@@ -32,7 +32,12 @@ export const useBlogStore = defineStore('blog', {
     async fetchBlogById(id) {
       try {
         this.loading = true
+        console.log(`开始请求博客详情API，博客ID: ${id}`)
+        console.log(`请求URL: /api/blogs/${id}`)
+        
         const response = await axios.get(`/api/blogs/${id}`)
+        console.log('博客详情API响应:', response)
+        
         this.currentBlog = response.data
         const index = this.blogs.findIndex(blog => blog.id === id)
         if (index !== -1) {
@@ -43,6 +48,9 @@ export const useBlogStore = defineStore('blog', {
         return response.data
       } catch (error) {
         console.error('获取博客详情失败:', error)
+        console.error('错误响应:', error.response)
+        console.error('状态码:', error.response?.status)
+        console.error('错误信息:', error.response?.data)
         this.error = error.response?.data?.message || '获取博客详情失败'
         throw error
       } finally {

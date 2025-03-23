@@ -17,8 +17,39 @@ axios.interceptors.request.use(config => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
+  
+  // 添加请求日志
+  console.log('发送请求:', config.method.toUpperCase(), config.url)
+  console.log('请求头:', config.headers)
+  if (config.data) {
+    console.log('请求数据:', config.data)
+  }
+  
   return config
+}, error => {
+  console.error('请求错误:', error)
+  return Promise.reject(error)
 })
+
+// 添加响应拦截器
+axios.interceptors.response.use(
+  response => {
+    console.log('响应成功:', response.status, response.config.url)
+    return response
+  },
+  error => {
+    console.error('响应错误:', error.config?.url || '未知URL')
+    if (error.response) {
+      console.error('错误状态:', error.response.status)
+      console.error('错误数据:', error.response.data)
+    } else if (error.request) {
+      console.error('未收到响应，请求信息:', error.request)
+    } else {
+      console.error('请求配置有误:', error.message)
+    }
+    return Promise.reject(error)
+  }
+)
 
 // 创建应用实例
 const app = createApp(App)

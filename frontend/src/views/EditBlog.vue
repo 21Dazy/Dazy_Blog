@@ -156,30 +156,38 @@ export default {
     
     onMounted(async () => {
       try {
+        console.log('开始加载博客数据，博客ID:', blogId.value);
+        
         // 获取分类列表
-        await categoryStore.fetchCategories()
+        await categoryStore.fetchCategories();
+        console.log('分类列表加载成功:', categories.value);
         
         // 获取标签列表（假设有一个标签API）
         // const tagResponse = await axios.get('/api/tags')
         // tags.value = tagResponse.data
         
         // 获取博客详情
-        const blogData = await blogStore.fetchBlogById(blogId.value)
+        console.log('开始请求博客详情，URL:', `/api/blogs/${blogId.value}`);
+        const blogData = await blogStore.fetchBlogById(blogId.value);
+        console.log('获取到的博客数据:', blogData);
         
         // 填充表单数据
-        formData.title = blogData.title
-        formData.categoryId = blogData.category.id
-        formData.tags = blogData.tags.map(tag => tag.id)
-        formData.summary = blogData.summary
-        formData.content = blogData.content
-        formData.coverImage = blogData.coverImage
-        formData.status = blogData.status
+        formData.title = blogData.title;
+        formData.categoryId = blogData.category ? blogData.category.id : '';
+        formData.tags = blogData.tags ? blogData.tags.map(tag => tag.id) : [];
+        formData.summary = blogData.summary;
+        formData.content = blogData.content;
+        formData.coverImage = blogData.coverImage;
+        formData.status = blogData.status || 'PUBLISHED';
         
-        loading.value = false
+        console.log('表单数据填充完成');
+        loading.value = false;
       } catch (error) {
-        console.error('加载数据失败:', error)
-        ElMessage.error('加载博客数据失败')
-        router.push('/')
+        console.error('加载数据失败:', error);
+        console.error('错误详情:', error.response ? error.response.data : '无响应数据');
+        console.error('状态码:', error.response ? error.response.status : '无状态码');
+        ElMessage.error('加载博客数据失败');
+        router.push('/');
       }
     })
     
