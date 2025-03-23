@@ -1,0 +1,81 @@
+# 前端 - Vue/Node.js 相关
+node_modules/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn
+yarn.lock
+package-lock.json
+.DS_Store
+*.local
+
+# 后端 - Java/Spring Boot 相关
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+*.class
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+.gradle
+build/
+
+# IDE 相关
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.iws
+*.iml
+*.ipr
+out/
+
+# 环境配置文件
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 日志文件
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# 测试覆盖率报告
+coverage/
+
+# 上传的图片文件，但保留目录结构
+backend/uploads/blogs/*.jpg
+backend/uploads/blogs/*.jpeg
+backend/uploads/blogs/*.png
+backend/uploads/blogs/*.gif
+backend/uploads/blogs/*.webp
+backend/uploads/avatar/*.jpg
+backend/uploads/avatar/*.jpeg
+backend/uploads/avatar/*.png
+backend/uploads/avatar/*.gif
+backend/uploads/avatar/*.webp
+
+# 保留 .gitkeep 文件
+!.gitkeep 
