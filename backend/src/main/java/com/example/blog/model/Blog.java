@@ -29,7 +29,6 @@ public class Blog {
     private String summary;
 
     @NotBlank
-    @Lob//这个注解表示这个字段是一个大对象，可以存储大量的数据
     @Column(columnDefinition = "LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
     private String content;
 
