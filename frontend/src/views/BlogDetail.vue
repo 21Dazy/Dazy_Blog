@@ -156,6 +156,10 @@ export default {
         const blogData = await blogStore.fetchBlogById(blogId)
         console.log('获取到的博客数据:', blogData)
         
+        //获取博客下的评论
+        const commentsData = await blogStore.fetchCommentsByBlogId(blogId)
+        console.log('获取到的评论数据:', commentsData)
+
         // 确保博客数据包含完整信息
         if (blogData) {
           blog.value = {
@@ -322,9 +326,9 @@ export default {
       try {
         commentLoading.value = true
         // 这里应该有一个API来提交评论
-        // await axios.post(`/api/blogs/${blog.value.id}/comments`, {
-        //   content: commentContent.value
-        // })
+         await axios.post(`/api/blogs/${blog.value.id}/comments`, {
+           content: commentContent.value
+         })
         
         // 模拟评论提交成功
         const newComment = {

@@ -17,7 +17,7 @@ import java.util.*;
 
 @RestController
 //@RequestMapping("/blogs")
-@CrossOrigin(origins = "*", maxAge = 3600)
+@CrossOrigin(origins = "localhost:8082", maxAge = 3600)
 public class FileController {
 
     @Value("${file.upload-dir}")
