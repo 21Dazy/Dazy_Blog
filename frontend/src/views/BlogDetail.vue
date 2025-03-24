@@ -148,16 +148,23 @@ export default {
     const isAuthor = computed(() => {
       return blog.value && blog.value.author && blog.value.author.id === currentUserId.value
     })
+
+    
     
     onMounted(async () => {
       const blogId = route.params.id
       try {
         loading.value = true
+        const comment_params = {
+          blogId: blogId,
+          page: 1,
+          size: 10,
+        }
         const blogData = await blogStore.fetchBlogById(blogId)
         console.log('获取到的博客数据:', blogData)
         
         //获取博客下的评论
-        const commentsData = await blogStore.fetchCommentsByBlogId(blogId)
+        const commentsData = await blogStore.fetchCommentsByBlogId(comment_params)
         console.log('获取到的评论数据:', commentsData)
 
         // 确保博客数据包含完整信息
@@ -189,15 +196,16 @@ export default {
       }
     })
     
-    const formatDate = (dateString) => {
-      if (!dateString) return '未知日期'
+    const formatDate = (dateArray) => {
+      if (!dateArray) return '未知日期'
       
       try {
         // 尝试直接解析日期字符串
-        const date = new Date(dateString)
+        const date = new Date(dateArray[0], dateArray[1] - 1, dateArray[2], dateArray[3], dateArray[4], dateArray[5])
+  
         // 检查日期是否有效
         if (isNaN(date.getTime())) {
-          console.error('无效的日期值:', dateString)
+          console.error('无效的日期值:', dateArray)
           return '无效日期'
         }
         
@@ -209,7 +217,7 @@ export default {
           minute: '2-digit'
         })
       } catch (error) {
-        console.error('日期格式化错误:', error, '日期值:', dateString)
+        console.error('日期格式化错误:', error, '日期值:', dateArray)
         return '无效日期'
       }
     }
@@ -232,7 +240,7 @@ export default {
       
       try {
         // 使用POST请求进行点赞
-        const response = await axios.post(`/blogs/${blog.value.id}/like`)
+        const response = await axios.post(`/api/blogs/${blog.value.id}/like`)
         blog.value.likes = response.data
         hasLiked.value = true
         ElMessage.success('点赞成功')
@@ -326,9 +334,18 @@ export default {
       try {
         commentLoading.value = true
         // 这里应该有一个API来提交评论
-         await axios.post(`/api/blogs/${blog.value.id}/comments`, {
-           content: commentContent.value
-         })
+        await axios.post(`/api/comments/blog/${blog.value.id}`, 
+          {},
+          {
+              headers: {
+                  'Authorization': `Bearer ${userStore.token}`
+              },
+              params: {
+                  content: commentContent.value
+              }
+          }
+        )
+
         
         // 模拟评论提交成功
         const newComment = {

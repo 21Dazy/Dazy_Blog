@@ -62,12 +62,13 @@ export default {
       try {
         loading.value = true
         
+        
         // 获取分类信息
         const categoryData = await categoryStore.fetchCategoryById(categoryId)
         category.value = categoryData
         
         // 获取该分类下的博客
-        await blogStore.fetchBlogs({
+        await blogStore.fetchBlogsByCategory({
           page: currentPage.value,
           size: pageSize.value,
           categoryId: categoryId

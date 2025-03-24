@@ -25,9 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-@CrossOrigin(origins = {"http://localhost:8082", "http://127.0.0.1:8082"}, maxAge = 3600, allowCredentials = "true")
 @RestController
-@RequestMapping("/")
 public class BlogController {
 
     private final BlogService blogService;

@@ -72,18 +72,29 @@ export default {
   setup(props) {
     const router = useRouter()
     
-    const formatDate = (dateString) => {
-      if (!dateString) return '未知时间';
+    const formatDate = (dateArray) => {
+      if (!dateArray) return '未知日期'
+      
       try {
-        const date = new Date(dateString);
+        // 尝试直接解析日期字符串
+        const date = new Date(dateArray[0], dateArray[1] - 1, dateArray[2], dateArray[3], dateArray[4], dateArray[5])
+  
+        // 检查日期是否有效
+        if (isNaN(date.getTime())) {
+          console.error('无效的日期值:', dateArray)
+          return '无效日期'
+        }
+        
         return date.toLocaleDateString('zh-CN', {
           year: 'numeric',
           month: 'long',
-          day: 'numeric'
-        });
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
       } catch (error) {
-        console.error('日期格式化错误:', error);
-        return '日期错误';
+        console.error('日期格式化错误:', error, '日期值:', dateArray)
+        return '无效日期'
       }
     }
     

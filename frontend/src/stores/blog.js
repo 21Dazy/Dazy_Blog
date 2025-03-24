@@ -153,6 +153,51 @@ export const useBlogStore = defineStore('blog', {
       } finally {
         this.loading = false
       }
+    },
+    
+    async fetchCommentsByBlogId(params) {
+      try {
+        this.loading = true
+        const response = await axios.get(`/api/comments/blog/${params.blogId}`, {
+          params: {
+            page: params.page - 1, // 因为后端是0索引开始
+            size: params.size
+          }
+        })
+        return response.data;
+      } catch (error) {
+        this.error = error.response?.data?.message || '获取评论失败'
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+    async fetchBlogsByCategory(params) {
+      try {
+        this.loading = true
+        const response = await axios.get(`/api/blogs/category/${params.categoryId}`, {
+          params: {
+            page: params.page - 1, // 因为后端是0索引开始
+            size: params.size,
+            sortBy: params.sortBy,
+            order: params.order
+          }
+        })
+        this.blogs=response.data.blogs;
+        if(!response.data.blogs){
+          this.currentBlog=null;
+        }
+        else{
+          this.currentBlog=response.data.blogs[0];
+        }
+        
+        return response.data;
+      } catch (error) {
+        this.error = error.response?.data?.message || '获取评论失败'
+        throw error
+      } finally {
+        this.loading = false
+      }
     }
   }
-}) 
+})

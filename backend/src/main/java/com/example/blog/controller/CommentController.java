@@ -17,7 +17,7 @@ import org.springframework.beans.factory.annotation.Value;
 import java.util.HashMap;
 import java.util.Map;
 
-@CrossOrigin(origins = "*", maxAge = 3600)
+
 @RestController
 @RequestMapping("/comments")
 public class CommentController {
@@ -28,7 +28,6 @@ public class CommentController {
     @Value("${jwt.secret}")
     private String jwtSecret;
 
-    @Autowired
     public CommentController(CommentService commentService, UserService userService) {
         this.commentService = commentService;
         this.userService = userService;

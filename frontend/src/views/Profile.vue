@@ -411,19 +411,20 @@ export default {
       fetchUserBlogs()
     }
     
-    const formatDate = (date) => {
-      if (!date) return '未知日期'
+    const formatDate = (dateArray) => {
+      if (!dateArray) return '未知日期'
       
       try {
         // 尝试直接解析日期字符串
-        const dateObj = date instanceof Date ? date : new Date(date)
+        const date = new Date(dateArray[0], dateArray[1] - 1, dateArray[2], dateArray[3], dateArray[4], dateArray[5])
+  
         // 检查日期是否有效
-        if (isNaN(dateObj.getTime())) {
-          console.error('无效的日期值:', date)
+        if (isNaN(date.getTime())) {
+          console.error('无效的日期值:', dateArray)
           return '无效日期'
         }
         
-        return dateObj.toLocaleString('zh-CN', {
+        return date.toLocaleDateString('zh-CN', {
           year: 'numeric',
           month: 'long',
           day: 'numeric',
@@ -431,7 +432,7 @@ export default {
           minute: '2-digit'
         })
       } catch (error) {
-        console.error('日期格式化错误:', error, '日期值:', date)
+        console.error('日期格式化错误:', error, '日期值:', dateArray)
         return '无效日期'
       }
     }
