@@ -71,7 +71,7 @@ public class BlogController {
     }
 
     @PostMapping("/auth/blogs")
-    public ResponseEntity<?> createBlog(@Valid @RequestBody BlogRequest blogRequest,
+    public ResponseEntity<?> createBlog(@Valid @RequestBody BlogRequest blogRequest,//valid注释表示参数校验，若参数不符合要求，则会返回400错误
                                        @RequestHeader("Authorization") String token) {
         try {
             // 记录请求内容以便调试

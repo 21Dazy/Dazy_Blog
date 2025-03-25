@@ -37,7 +37,8 @@ export const useCategoryStore = defineStore('category', {
         if (index !== -1) {
           this.categories[index] = response.data
         } else {
-          this.categories.push(response.data)
+          //this.categories.push(response.data)//这里存在bug，会使得categories数组中存在重复的对象
+          //this.categories = [...this.categories, response.data]
         }
         return response.data
       } catch (error) {

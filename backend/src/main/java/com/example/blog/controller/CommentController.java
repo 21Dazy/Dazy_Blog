@@ -19,7 +19,6 @@ import java.util.Map;
 
 
 @RestController
-@RequestMapping("/comments")
 public class CommentController {
 
     private final CommentService commentService;
@@ -63,7 +62,7 @@ public class CommentController {
         return 1L;
     }
 
-    @PostMapping("/blog/{blogId}")
+    @PostMapping("/auth/comments/blog/{blogId}")// 创建评论要求是
     public ResponseEntity<?> createComment(
             @PathVariable Long blogId,
             @RequestParam String content,
@@ -78,7 +77,7 @@ public class CommentController {
         }
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("/comments/{id}")
     public ResponseEntity<?> updateComment(
             @PathVariable Long id,
             @RequestParam String content,
@@ -93,7 +92,7 @@ public class CommentController {
         }
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/comments/{id}")
     public ResponseEntity<?> deleteComment(
             @PathVariable Long id,
             @RequestHeader("Authorization") String token) {
@@ -107,7 +106,7 @@ public class CommentController {
         }
     }
 
-    @GetMapping("/blog/{blogId}")
+    @GetMapping("/comments/blog/{blogId}")
     public ResponseEntity<?> getCommentsByBlogId(
             @PathVariable Long blogId,
             @RequestParam(defaultValue = "0") int page,

@@ -28,7 +28,9 @@ public class CommentRequest {
     }
     
     // Getters and Setters
+    // 定义一个公共的方法，用于获取内容
     public String getContent() {
+        // 返回成员变量content的值
         return content;
     }
     

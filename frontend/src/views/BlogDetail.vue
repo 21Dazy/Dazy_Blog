@@ -142,7 +142,7 @@ export default {
     const commentContent = ref('')
     const commentLoading = ref(false)
     const hasLiked = ref(false)
-    
+    let comment_date
     const isLoggedIn = computed(() => userStore.isAuthenticated)
     const currentUserId = computed(() => userStore.user?.id)
     const isAuthor = computed(() => {
@@ -209,7 +209,7 @@ export default {
           return '无效日期'
         }
         
-        return date.toLocaleDateString('zh-CN', {
+        return comment_date=date.toLocaleDateString('zh-CN', {
           year: 'numeric',
           month: 'long',
           day: 'numeric',
@@ -334,7 +334,7 @@ export default {
       try {
         commentLoading.value = true
         // 这里应该有一个API来提交评论
-        await axios.post(`/api/comments/blog/${blog.value.id}`, 
+        await axios.post(`/api/auth/comments/blog/${blog.value.id}`, 
           {},
           {
               headers: {
@@ -351,7 +351,8 @@ export default {
         const newComment = {
           id: Date.now(),
           content: commentContent.value,
-          createdAt: new Date().toISOString(),
+          createdAt: comment_dateqw
+          ,
           user: {
             id: currentUserId.value,
             username: userStore.user?.username || '当前用户',
