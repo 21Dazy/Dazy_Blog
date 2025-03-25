@@ -140,4 +140,44 @@ p {
   h1 { font-size: 2rem; }
   h2 { font-size: 1.75rem; }
   h3 { font-size: 1.5rem; }
+}
+
+/* El-Select 排序选择框全局样式 */
+.sort-select-dropdown {
+  border-radius: 8px !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  margin-top: 5px !important;
+  padding: 6px 0 !important;
+}
+
+.sort-select-dropdown .el-scrollbar__view {
+  padding: 4px 0 !important;
+}
+
+.sort-select-dropdown .el-select-dropdown__item {
+  padding: 8px 16px !important;
+  height: auto !important;
+  line-height: 1.5 !important;
+  font-size: 14px !important;
+  transition: all 0.2s ease;
+}
+
+.sort-select-dropdown .el-select-dropdown__item.selected {
+  font-weight: 600 !important;
+  color: #409EFF !important;
+  background-color: rgba(64, 158, 255, 0.1) !important;
+}
+
+.sort-select-dropdown .el-select-dropdown__item:hover {
+  background-color: #f5f7fa !important;
+}
+
+/* Element Plus select hover effect */
+.el-select:hover .el-input__wrapper {
+  box-shadow: 0 0 0 1px #dcdfe6 inset !important;
+}
+
+.el-select .el-input.is-focus .el-input__wrapper {
+  box-shadow: 0 0 0 1px #409EFF inset !important;
 } 

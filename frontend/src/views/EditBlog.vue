@@ -58,13 +58,14 @@
       
       <el-form-item label="内容" prop="content">
         <div class="editor-container">
-          <!-- 这里可以集成富文本编辑器，如wangEditor、TinyMCE等 -->
-          <el-input 
-            v-model="formData.content" 
-            type="textarea" 
-            :rows="15" 
-            placeholder="请输入博客内容"
-          ></el-input>
+          <!-- 使用Markdown编辑器替代普通文本域 -->
+          <MarkdownEditor 
+            v-model:value="formData.content" 
+            :upload-headers="uploadHeaders"
+            upload-url="/api/blogs/upload"
+            @upload-success="handleImageSuccess"
+            @upload-error="handleUploadError"
+          />
         </div>
       </el-form-item>
       
@@ -104,9 +105,13 @@ import { useBlogStore } from '@/stores/blog'
 import { useCategoryStore } from '@/stores/category'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import MarkdownEditor from '@/components/MarkdownEditor.vue'
 
 export default {
   name: 'EditBlog',
+  components: {
+    MarkdownEditor
+  },
   setup() {
     const blogStore = useBlogStore()
     const categoryStore = useCategoryStore()
@@ -191,8 +196,15 @@ export default {
       }
     })
     
+    // 处理封面图片上传成功
     const handleCoverSuccess = (res) => {
       formData.coverImage = res.url
+    }
+    
+    // 处理Markdown编辑器中图片上传成功
+    const handleImageSuccess = (res) => {
+      // 返回markdown格式的图片链接，可以直接插入到编辑器中
+      return `![图片](${getImageUrl(res.url)})`
     }
     
     const beforeCoverUpload = (file) => {
@@ -296,6 +308,7 @@ export default {
       blogId,
       uploadHeaders,
       handleCoverSuccess,
+      handleImageSuccess,
       beforeCoverUpload,
       handleUploadError,
       submitForm,
@@ -330,6 +343,7 @@ export default {
 .editor-container {
   border: 1px solid #dcdfe6;
   border-radius: 4px;
+  min-height: 400px;
 }
 
 .cover-uploader {

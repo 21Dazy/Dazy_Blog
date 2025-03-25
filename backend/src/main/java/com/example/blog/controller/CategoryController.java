@@ -116,6 +116,7 @@ public class CategoryController {
         }
     }
 
+    
     // 获取异常的根本原因
     private Throwable getRootCause(Throwable throwable) {
         Throwable cause = throwable.getCause();

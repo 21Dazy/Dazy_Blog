@@ -7,6 +7,7 @@ export const useBlogStore = defineStore('blog', {
     currentBlog: null,
     loading: false,
     error: null,
+    currentSortBy: null,
   }),
 
   getters: {
@@ -198,6 +199,49 @@ export const useBlogStore = defineStore('blog', {
       } finally {
         this.loading = false
       }
+    },
+
+    blogsSortBy(sortBy) {
+        console.log("开始排序，当前博客数:", this.blogs.length, "排序方式:", sortBy);
+        
+        let sortedBlogs = [];
+        
+        if(sortBy == "最新发布"){
+          // 确保克隆数组并进行深拷贝以触发响应式
+          sortedBlogs = [...this.blogs].sort((a,b) => {
+            const dateA = new Date(a.createdAt);
+            const dateB = new Date(b.createdAt);
+            return dateB - dateA;
+          });
+          console.log("按日期排序完成");
+        }
+        else if(sortBy == "最多阅读"){
+          sortedBlogs = [...this.blogs].sort((a,b) => {
+            return (b.views || 0) - (a.views || 0);
+          });
+          console.log("按阅读量排序完成");
+        }
+        else if(sortBy == "最多点赞"){
+          sortedBlogs = [...this.blogs].sort((a,b) => {
+            return (b.likes || 0) - (a.likes || 0);
+          });
+          console.log("按点赞量排序完成");
+        }
+        
+        // 使用完全新的数组替换原数组，确保触发响应式
+        this.blogs = [];
+        this.$patch({ blogs: sortedBlogs });
+        
+        console.log("排序后的博客列表:", this.blogs);
+      },
+
+    // 添加排序设置
+    setSorting(sortBy) {
+      // 实际上仅设置排序选项，实际排序逻辑在 blogsSortBy 方法中
+      console.log(`设置排序方式为: ${sortBy}`);
+      // 这里可以保存当前的排序方式供未来使用
+      this.currentSortBy = sortBy;
     }
+
   }
 })

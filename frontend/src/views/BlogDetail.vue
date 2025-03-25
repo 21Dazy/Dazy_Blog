@@ -1,201 +1,301 @@
 <template>
   <div class="blog-detail-container">
-    <el-skeleton :rows="10" animated v-if="loading" />
+    <div v-if="loading" class="loading-skeleton">
+      <el-skeleton animated>
+        <template #template>
+          <div style="padding: 20px;">
+            <el-skeleton-item variant="h1" style="width: 50%; margin-bottom: 20px;" />
+            <el-skeleton-item variant="text" style="width: 30%; margin-bottom: 10px;" />
+            <el-skeleton-item variant="text" style="width: 100%; margin-top: 20px; height: 200px;" />
+          </div>
+        </template>
+      </el-skeleton>
+    </div>
     
-    <div v-else-if="!blog" class="blog-not-found">
-      <el-empty description="博客不存在或已被删除" />
-      <el-button type="primary" @click="$router.push('/')">返回首页</el-button>
+    <div v-else-if="!blog" class="not-found">
+      <el-empty description="未找到该博客">
+        <template #description>
+          <p>抱歉，未找到该博客或博客可能已被删除</p>
+        </template>
+        <router-link to="/">
+          <el-button type="primary">返回首页</el-button>
+        </router-link>
+      </el-empty>
     </div>
     
     <div v-else class="blog-detail">
+      <!-- 博客头部信息区域 -->
       <div class="blog-header">
         <h1 class="blog-title">{{ blog.title }}</h1>
+        
         <div class="blog-meta">
-          <span class="author" v-if="blog.author">
-            <i class="el-icon-user"></i> {{ blog.author.username }}
-          </span>
-          <span class="author" v-else>
-            <i class="el-icon-user"></i> 未知作者
-          </span>
-          <span class="date">
-            <i class="el-icon-date"></i> {{ formatDate(blog.createdAt) }}
-          </span>
-          <span class="category" v-if="blog.category">
-            <i class="el-icon-folder"></i> 
-            <router-link :to="'/category/' + blog.category.id">
-              {{ blog.category.name }}
-            </router-link>
-          </span>
-          <span class="category" v-else>
-            <i class="el-icon-folder"></i> 未分类
-          </span>
-          <span class="views">
-            <i class="el-icon-view"></i> {{ blog.views || 0 }} 阅读
-          </span>
+          <div class="author-info">
+            <div class="author-avatar">
+              <img 
+                :src="getImageUrl(blog.author?.avatar) || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" 
+                alt="作者头像"
+              >
+            </div>
+            <div class="author-detail">
+              <div class="author-name">{{ blog.author?.username || '匿名作者' }}</div>
+              <div class="publish-info">
+                <span class="publish-date">{{ formatDate(blog.createdAt) }}</span>
+                <span class="category" v-if="blog.category">
+                  <el-tag size="small" type="info">{{ blog.category.name }}</el-tag>
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="blog-stats">
+            <el-tooltip content="阅读数">
+              <span class="stat-item"><i class="el-icon-view"></i> {{ blog.views || 0 }}</span>
+            </el-tooltip>
+            <el-tooltip content="评论数">
+              <span class="stat-item"><i class="el-icon-chat-line-square"></i> {{ blog.commentCount || 0 }}</span>
+            </el-tooltip>
+            <el-tooltip content="点赞数">
+              <span class="stat-item">
+                <i 
+                  :class="['el-icon-star-off', {'liked': isLiked}]" 
+                  @click="toggleLike"
+                  class="like-icon"
+                ></i> 
+                {{ blog.likes || 0 }}
+              </span>
+            </el-tooltip>
+          </div>
         </div>
         
-        <div class="blog-tags" v-if="blog.tags && blog.tags.length > 0">
+        <!-- 博客封面图 -->
+        <div v-if="blog.coverImg" class="blog-cover">
+          <img :src="blog.coverImg" alt="博客封面">
+        </div>
+        
+        <!-- 标签列表 -->
+        <div v-if="blog.tags && blog.tags.length > 0" class="blog-tags">
           <el-tag 
             v-for="tag in blog.tags" 
-            :key="tag.id" 
-            size="small" 
+            :key="tag.id"
+            size="small"
             effect="plain"
-            @click="navigateToTag(tag.id)"
+            class="tag-item"
           >
             {{ tag.name }}
           </el-tag>
         </div>
       </div>
       
-      <div v-if="blog.coverImage" class="blog-cover">
-        <img :src="getImageUrl(blog.coverImage)" alt="博客封面" />
+      <!-- 博客内容 - 使用Markdown渲染器 -->
+      <div class="blog-content">
+        <MarkdownRenderer :content="blog.content" />
       </div>
       
-      <div class="blog-content" v-html="blog.content"></div>
-      
-      <div class="blog-actions">
-        <el-button type="primary" plain @click="likeBlog" :disabled="hasLiked">
-          <i class="el-icon-star-off"></i> 点赞 ({{ blog.likes || 0 }})
-        </el-button>
-        <el-button plain @click="shareBlog">
-          <i class="el-icon-share"></i> 分享
-        </el-button>
-        
-        <div v-if="isAuthor" class="author-actions">
-          <el-button type="warning" plain @click="editBlog">
-            <i class="el-icon-edit"></i> 编辑
+      <!-- 博客底部信息区域 -->
+      <div class="blog-footer">
+        <div class="action-buttons">
+          <el-button 
+            type="primary" 
+            :class="['like-button', {'is-liked': isLiked}]"
+            @click="toggleLike"
+          >
+            <i class="el-icon-star-off"></i>
+            {{ isLiked ? '已点赞' : '点赞' }}
+            <span v-if="blog.likes > 0">({{ blog.likes }})</span>
           </el-button>
-          <el-button type="danger" plain @click="confirmDelete">
-            <i class="el-icon-delete"></i> 删除
-          </el-button>
-        </div>
-      </div>
-      
-      <div class="blog-comments">
-        <h3>评论 ({{ blog.comments?.length || 0 }})</h3>
-        
-        <div v-if="isLoggedIn" class="comment-form">
-          <el-input
-            v-model="commentContent"
-            type="textarea"
-            :rows="3"
-            placeholder="写下你的评论..."
-          ></el-input>
-          <el-button type="primary" @click="submitComment" :loading="commentLoading">
-            提交评论
-          </el-button>
-        </div>
-        
-        <div v-else class="login-to-comment">
-          <p>请 <router-link to="/login">登录</router-link> 后发表评论</p>
-        </div>
-        
-        <div class="comment-list">
-          <div v-if="!blog.comments || blog.comments.length === 0" class="no-comments">
-            暂无评论，快来发表第一条评论吧！
-          </div>
           
-          <div v-else class="comments">
-            <div 
-              v-for="comment in blog.comments" 
-              :key="comment.id" 
-              class="comment-item"
-            >
-              <div class="comment-avatar">
-                <el-avatar :size="40" :src="comment.user && comment.user.avatar ? getImageUrl(comment.user.avatar) : 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'"></el-avatar>
-              </div>
-              <div class="comment-content">
-                <div class="comment-header">
-                  <span class="comment-author">{{ comment.user?.username || '匿名用户' }}</span>
-                  <span class="comment-date">{{ formatDate(comment.createdAt) }}</span>
-                </div>
-                <div class="comment-text">{{ comment.content }}</div>
-                <div class="comment-actions">
-                  <span class="reply-btn" @click="replyToComment(comment)">回复</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          <el-button 
+            icon="el-icon-share" 
+            @click="showShareOptions"
+          >
+            分享
+          </el-button>
+        </div>
+        
+        <!-- 作者简介 -->
+        <div class="author-bio" v-if="blog.author?.bio">
+          <h3>关于作者</h3>
+          <div class="bio-content">{{ blog.author.bio }}</div>
+        </div>
+        
+        <!-- 相关文章 -->
+        <div class="related-posts" v-if="relatedBlogs.length > 0">
+          <h3>相关文章</h3>
+          <ul class="related-list">
+            <li v-for="item in relatedBlogs" :key="item.id">
+              <router-link :to="`/blog/${item.id}`">{{ item.title }}</router-link>
+              <span class="post-date">{{ formatDate(item.createdAt) }}</span>
+            </li>
+          </ul>
         </div>
       </div>
+      
+      <!-- 评论区 -->
+      <CommentSection 
+        :targetId="blog.id"
+        targetType="blog"
+      />
     </div>
   </div>
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
-import { useBlogStore } from '@/stores/blog'
-import { useUserStore } from '@/stores/user'
-import { useRouter, useRoute } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import axios from 'axios'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useBlogStore } from '../stores/blog'
+import { useUserStore } from '../stores/user'
+import { ElMessage } from 'element-plus'
+import MarkdownRenderer from '../components/MarkdownRenderer.vue'
+import CommentSection from '../components/CommentSection.vue'
 
 export default {
   name: 'BlogDetail',
+  components: {
+    MarkdownRenderer,
+    CommentSection
+  },
   setup() {
+    const route = useRoute()
+    const router = useRouter()
     const blogStore = useBlogStore()
     const userStore = useUserStore()
-    const router = useRouter()
-    const route = useRoute()
-    const loading = ref(true)
+    
+    // 状态管理
     const blog = ref(null)
-    const commentContent = ref('')
-    const commentLoading = ref(false)
-    const hasLiked = ref(false)
-    let comment_date
-    const isLoggedIn = computed(() => userStore.isAuthenticated)
-    const currentUserId = computed(() => userStore.user?.id)
-    const isAuthor = computed(() => {
-      return blog.value && blog.value.author && blog.value.author.id === currentUserId.value
+    const loading = ref(true)
+    const isLiked = ref(false)
+    const relatedBlogs = ref([])
+    
+    // 从URL中获取博客ID
+    const blogId = computed(() => route.params.id)
+    
+    // 监听路由变化，重新加载博客详情
+    watch(() => route.params.id, () => {
+      loadBlogDetail()
     })
-
     
-    
-    onMounted(async () => {
-      const blogId = route.params.id
+    // 加载博客详情
+    const loadBlogDetail = async () => {
+      if (!blogId.value) {
+        return
+      }
+      
+      loading.value = true
+      
       try {
-        loading.value = true
-        const comment_params = {
-          blogId: blogId,
-          page: 1,
-          size: 10,
-        }
-        const blogData = await blogStore.fetchBlogById(blogId)
-        console.log('获取到的博客数据:', blogData)
+        await blogStore.fetchBlogById(blogId.value)
+        blog.value = blogStore.currentBlog
         
-        //获取博客下的评论
-        const commentsData = await blogStore.fetchCommentsByBlogId(comment_params)
-        console.log('获取到的评论数据:', commentsData)
-
-        // 确保博客数据包含完整信息
-        if (blogData) {
-          blog.value = {
-            ...blogData,
-            author: blogData.author || { username: '未知作者' },
-            category: blogData.category || { id: 0, name: '未分类' },
-            tags: blogData.tags || [],
-            views: blogData.views || 0,
-            createdAt: blogData.createdAt || new Date().toISOString()
-          }
+        if (blog.value) {
+          document.title = `${blog.value.title} - 博客详情`
+          checkLikeStatus()
+          fetchRelatedBlogs()
         } else {
-          // 如果没有数据，显示"博客不存在"消息
-          blog.value = null
-        }
-        
-        // 检查用户是否已点赞
-        if (isLoggedIn.value) {
-          // 这里应该有一个API来检查用户是否已点赞
-          // hasLiked.value = await checkIfUserLiked(blogId)
+          document.title = '博客不存在'
         }
       } catch (error) {
-        console.error('获取博客详情失败:', error)
-        ElMessage.error('获取博客详情失败')
-        blog.value = null
+        console.error('加载博客详情失败:', error)
+        ElMessage.error('加载博客详情失败，请稍后重试')
       } finally {
         loading.value = false
       }
-    })
+    }
     
+    // 检查当前用户是否已点赞
+    const checkLikeStatus = () => {
+      // 实际项目中应该从后端请求点赞状态
+      // 这里简单模拟从localStorage读取点赞状态
+      const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]')
+      isLiked.value = likedPosts.includes(Number(blogId.value))
+    }
+    
+    // 点赞或取消点赞
+    const toggleLike = async () => {
+      if (!userStore.isLoggedIn) {
+        ElMessage.warning('请先登录后再点赞')
+        return
+      }
+      
+      try {
+        // 模拟API调用
+        // 实际项目中应该调用真实的API
+        await new Promise(resolve => setTimeout(resolve, 300))
+        
+        // 更新本地状态
+        isLiked.value = !isLiked.value
+        
+        // 更新点赞数
+        if (isLiked.value) {
+          blog.value.likes = (blog.value.likes || 0) + 1
+        } else {
+          blog.value.likes = Math.max((blog.value.likes || 0) - 1, 0)
+        }
+        
+        // 保存点赞状态到localStorage
+        let likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]')
+        if (isLiked.value) {
+          if (!likedPosts.includes(Number(blogId.value))) {
+            likedPosts.push(Number(blogId.value))
+          }
+        } else {
+          likedPosts = likedPosts.filter(id => id !== Number(blogId.value))
+        }
+        localStorage.setItem('likedPosts', JSON.stringify(likedPosts))
+        
+        ElMessage.success(isLiked.value ? '点赞成功' : '已取消点赞')
+      } catch (error) {
+        console.error('点赞操作失败:', error)
+        ElMessage.error('操作失败，请稍后重试')
+      }
+    }
+    
+    // 获取相关博客
+    const fetchRelatedBlogs = async () => {
+      try {
+        // 实际项目中应该调用真实的API获取相关博客
+        // 这里模拟一些相关博客数据
+        await new Promise(resolve => setTimeout(resolve, 300))
+        
+        relatedBlogs.value = [
+          {
+            id: 101,
+            title: '相关博客1: Vue.js 最佳实践',
+            createdAt: new Date(Date.now() - 86400000 * 3).toISOString()
+          },
+          {
+            id: 102,
+            title: '相关博客2: React vs Vue 详细对比',
+            createdAt: new Date(Date.now() - 86400000 * 7).toISOString()
+          },
+          {
+            id: 103,
+            title: '相关博客3: 现代前端开发工具链',
+            createdAt: new Date(Date.now() - 86400000 * 10).toISOString()
+          }
+        ]
+      } catch (error) {
+        console.error('获取相关博客失败:', error)
+        // 静默失败，不影响主功能
+      }
+    }
+    
+    // 显示分享选项
+    const showShareOptions = () => {
+      // 实际项目中可以集成分享SDK或使用自定义分享菜单
+      // 这里简单提示用户
+      const url = window.location.href
+      const title = blog.value.title
+      
+      navigator.clipboard.writeText(url)
+        .then(() => {
+          ElMessage.success('链接已复制到剪贴板，快去分享吧')
+        })
+        .catch(() => {
+          ElMessage.info(`请手动复制链接: ${url}`)
+        })
+    }
+    
+    // 格式化日期
     const formatDate = (dateArray) => {
       if (!dateArray) return '未知日期'
       
@@ -209,7 +309,7 @@ export default {
           return '无效日期'
         }
         
-        return comment_date=date.toLocaleDateString('zh-CN', {
+        return date.toLocaleDateString('zh-CN', {
           year: 'numeric',
           month: 'long',
           day: 'numeric',
@@ -221,161 +321,8 @@ export default {
         return '无效日期'
       }
     }
-    
-    const navigateToTag = (tagId) => {
-      router.push(`/tags/${tagId}`)
-    }
-    
-    const likeBlog = async () => {
-      if (!isLoggedIn.value) {
-        ElMessage.warning('请先登录')
-        router.push('/login')
-        return
-      }
-      
-      if (!blog.value) {
-        ElMessage.error('博客不存在')
-        return
-      }
-      
-      try {
-        // 使用POST请求进行点赞
-        const response = await axios.post(`/api/blogs/${blog.value.id}/like`)
-        blog.value.likes = response.data
-        hasLiked.value = true
-        ElMessage.success('点赞成功')
-      } catch (error) {
-        console.error('点赞失败:', error)
-        ElMessage.error('点赞失败')
-      }
-    }
-    
-    const shareBlog = () => {
-      if (!blog.value) {
-        ElMessage.error('博客不存在')
-        return
-      }
-      
-      // 实现分享功能，可以使用第三方分享库或原生Web Share API
-      if (navigator.share) {
-        navigator.share({
-          title: blog.value.title || '分享博客',
-          text: blog.value.summary || '',
-          url: window.location.href
-        })
-      } else {
-        // 复制链接到剪贴板
-        const dummy = document.createElement('input')
-        document.body.appendChild(dummy)
-        dummy.value = window.location.href
-        dummy.select()
-        document.execCommand('copy')
-        document.body.removeChild(dummy)
-        ElMessage.success('链接已复制到剪贴板')
-      }
-    }
-    
-    const editBlog = () => {
-      if (!blog.value || !blog.value.id) {
-        ElMessage.error('博客不存在')
-        return
-      }
-      router.push(`/edit/${blog.value.id}`)
-    }
-    
-    const confirmDelete = () => {
-      if (!blog.value || !blog.value.id) {
-        ElMessage.error('博客不存在')
-        return
-      }
-      
-      ElMessageBox.confirm(
-        '确定要删除这篇博客吗？此操作不可逆',
-        '警告',
-        {
-          confirmButtonText: '确定',
-          cancelButtonText: '取消',
-          type: 'warning'
-        }
-      ).then(() => {
-        deleteBlog()
-      }).catch(() => {
-        // 取消删除
-      })
-    }
-    
-    const deleteBlog = async () => {
-      if (!blog.value || !blog.value.id) {
-        ElMessage.error('博客不存在')
-        return
-      }
-      
-      try {
-        await blogStore.deleteBlog(blog.value.id)
-        ElMessage.success('博客已删除')
-        router.push('/')
-      } catch (error) {
-        console.error('删除博客失败:', error)
-        ElMessage.error('删除博客失败')
-      }
-    }
-    
-    const submitComment = async () => {
-      if (!blog.value || !blog.value.id) {
-        ElMessage.error('博客不存在')
-        return
-      }
-      
-      if (!commentContent.value.trim()) {
-        ElMessage.warning('评论内容不能为空')
-        return
-      }
-      
-      try {
-        commentLoading.value = true
-        // 这里应该有一个API来提交评论
-        await axios.post(`/api/auth/comments/blog/${blog.value.id}`, 
-          {},
-          {
-              headers: {
-                  'Authorization': `Bearer ${userStore.token}`
-              },
-              params: {
-                  content: commentContent.value
-              }
-          }
-        )
 
-        
-        // 模拟评论提交成功
-        const newComment = {
-          id: Date.now(),
-          content: commentContent.value,
-          createdAt: comment_dateqw
-          ,
-          user: {
-            id: currentUserId.value,
-            username: userStore.user?.username || '当前用户',
-            avatar: userStore.user?.avatar || null
-          }
-        }
-        
-        blog.value.comments = blog.value.comments || []
-        blog.value.comments.push(newComment)
-        commentContent.value = ''
-        ElMessage.success('评论发表成功')
-      } catch (error) {
-        console.error('发表评论失败:', error)
-        ElMessage.error('发表评论失败')
-      } finally {
-        commentLoading.value = false
-      }
-    }
-    
-    const replyToComment = (comment) => {
-      commentContent.value = `@${comment.user?.username || '匿名用户'} `
-    }
-    
+    // 处理图片URL
     const getImageUrl = (url) => {
       if (!url) return ''
       
@@ -398,22 +345,19 @@ export default {
       return `http://localhost:8080${url}`
     }
     
+    // 初始化加载
+    onMounted(() => {
+      loadBlogDetail()
+    })
+    
     return {
-      loading,
       blog,
-      isLoggedIn,
-      isAuthor,
-      commentContent,
-      commentLoading,
-      hasLiked,
+      loading,
+      isLiked,
+      relatedBlogs,
+      toggleLike,
+      showShareOptions,
       formatDate,
-      navigateToTag,
-      likeBlog,
-      shareBlog,
-      editBlog,
-      confirmDelete,
-      submitComment,
-      replyToComment,
       getImageUrl
     }
   }
@@ -422,167 +366,227 @@ export default {
 
 <style scoped>
 .blog-detail-container {
+  max-width: 1000px;
+  margin: 0 auto;
   padding: 20px;
+}
+
+.loading-skeleton,
+.not-found {
+  margin: 40px 0;
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .blog-detail {
-  background-color: #fff;
-  border-radius: 4px;
-  padding: 30px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
 }
 
-.blog-not-found {
-  text-align: center;
-  padding: 50px 0;
-}
-
+/* 博客头部 */
 .blog-header {
-  margin-bottom: 20px;
+  padding: 30px;
+  border-bottom: 1px solid #f2f2f2;
 }
 
 .blog-title {
+  font-size: 2rem;
+  color: #303133;
   margin-top: 0;
-  margin-bottom: 15px;
-  font-size: 28px;
-  color: #333;
+  margin-bottom: 20px;
 }
 
 .blog-meta {
-  font-size: 14px;
-  color: #999;
-  margin-bottom: 15px;
-}
-
-.blog-meta span {
-  margin-right: 15px;
-}
-
-.blog-meta a {
-  color: #999;
-  text-decoration: none;
-}
-
-.blog-meta a:hover {
-  color: #409EFF;
-}
-
-.blog-tags {
-  margin-bottom: 20px;
-}
-
-.blog-tags .el-tag {
-  margin-right: 8px;
-  cursor: pointer;
-}
-
-.blog-cover {
-  margin-bottom: 20px;
-  text-align: center;
-}
-
-.blog-cover img {
-  max-width: 100%;
-  border-radius: 4px;
-}
-
-.blog-content {
-  line-height: 1.8;
-  color: #333;
-  margin-bottom: 30px;
-}
-
-.blog-actions {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 30px;
-  padding-top: 20px;
-  border-top: 1px solid #eee;
-}
-
-.blog-comments {
-  margin-top: 30px;
-  border-top: 1px solid #eee;
-  padding-top: 20px;
-}
-
-.blog-comments h3 {
-  margin-top: 0;
   margin-bottom: 20px;
 }
 
-.comment-form {
-  margin-bottom: 30px;
-}
-
-.comment-form .el-button {
-  margin-top: 10px;
-  float: right;
-}
-
-.login-to-comment {
-  text-align: center;
-  padding: 20px;
-  background-color: #f8f8f8;
-  border-radius: 4px;
-  margin-bottom: 20px;
-}
-
-.login-to-comment a {
-  color: #409EFF;
-  text-decoration: none;
-}
-
-.no-comments {
-  text-align: center;
-  color: #999;
-  padding: 20px 0;
-}
-
-.comment-item {
+.author-info {
   display: flex;
-  margin-bottom: 20px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid #f0f0f0;
+  align-items: center;
 }
 
-.comment-avatar {
-  margin-right: 15px;
-}
-
-.comment-content {
-  flex: 1;
-}
-
-.comment-header {
-  margin-bottom: 5px;
-}
-
-.comment-author {
-  font-weight: bold;
+.author-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
   margin-right: 10px;
 }
 
-.comment-date {
-  font-size: 12px;
-  color: #999;
+.author-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.comment-text {
-  line-height: 1.6;
-  margin-bottom: 10px;
+.author-name {
+  font-weight: bold;
+  color: #303133;
+  margin-bottom: 3px;
 }
 
-.comment-actions {
-  font-size: 12px;
-  color: #999;
+.publish-info {
+  display: flex;
+  align-items: center;
+  font-size: 0.8rem;
+  color: #909399;
 }
 
-.reply-btn {
+.publish-date {
+  margin-right: 10px;
+}
+
+.blog-stats {
+  display: flex;
+  align-items: center;
+}
+
+.stat-item {
+  margin-left: 15px;
+  color: #606266;
+  font-size: 0.9rem;
+}
+
+.like-icon {
   cursor: pointer;
 }
 
-.reply-btn:hover {
+.like-icon.liked {
+  color: #e74c3c;
+}
+
+.blog-cover {
+  margin: 20px 0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.blog-cover img {
+  width: 100%;
+  object-fit: cover;
+  max-height: 400px;
+}
+
+.blog-tags {
+  margin-top: 15px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.tag-item {
+  cursor: pointer;
+}
+
+/* 博客内容 */
+.blog-content {
+  padding: 30px;
+  color: #303133;
+  line-height: 1.8;
+  font-size: 1.05rem;
+}
+
+/* 博客底部 */
+.blog-footer {
+  padding: 20px 30px;
+  border-top: 1px solid #f2f2f2;
+}
+
+.action-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.like-button {
+  transition: all 0.3s;
+}
+
+.like-button.is-liked {
+  background-color: #e74c3c;
+  border-color: #e74c3c;
+}
+
+.author-bio,
+.related-posts {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px dashed #f2f2f2;
+}
+
+.author-bio h3,
+.related-posts h3 {
+  font-size: 1.2rem;
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #303133;
+}
+
+.bio-content {
+  color: #606266;
+  line-height: 1.6;
+}
+
+.related-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.related-list li {
+  padding: 8px 0;
+  border-bottom: 1px dashed #f2f2f2;
+}
+
+.related-list li:last-child {
+  border-bottom: none;
+}
+
+.related-list a {
+  color: #303133;
+  text-decoration: none;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 3px;
+}
+
+.related-list a:hover {
   color: #409EFF;
+}
+
+.post-date {
+  font-size: 12px;
+  color: #909399;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .blog-meta {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .blog-stats {
+    margin-top: 15px;
+  }
+  
+  .stat-item {
+    margin-left: 0;
+    margin-right: 15px;
+  }
+  
+  .blog-title {
+    font-size: 1.5rem;
+  }
 }
 </style> 

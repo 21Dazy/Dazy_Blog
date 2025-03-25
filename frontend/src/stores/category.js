@@ -5,12 +5,14 @@ export const useCategoryStore = defineStore('category', {
   state: () => ({
     categories: [],
     loading: false,
-    error: null
+    error: null,
+    blogCountByCategory: {}
   }),
 
   getters: {
     allCategories: (state) => state.categories,
-    categoryById: (state) => (id) => state.categories.find(category => category.id === id)
+    categoryById: (state) => (id) => state.categories.find(category => category.id === id),
+    blogCountByCategory: (state) => state.blogCountByCategory
   },
 
   actions: {
@@ -93,8 +95,20 @@ export const useCategoryStore = defineStore('category', {
       }
     },
 
+    async countBlogByCategory() {
+      try {
+        const response = await axios.get('/api/categories/count')
+        this.blogCountByCategory = response.data
+      } catch (error) {
+        this.error = error.response?.data?.message || '获取分类博客数量失败'
+        throw error
+      }
+    },
+
     clearError() {
       this.error = null
     }
+
+    
   }
 }) 
