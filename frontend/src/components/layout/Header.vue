@@ -2,7 +2,7 @@
   <header class="header">
     <div class="header-container">
       <div class="logo">
-        <router-link to="/">博客系统</router-link>
+        <router-link to="/">Dazy Blog</router-link>
       </div>
       <div class="nav-menu">
         <el-menu mode="horizontal" :router="true" :default-active="activeIndex">

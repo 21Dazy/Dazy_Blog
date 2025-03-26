@@ -181,7 +181,7 @@ export default {
           
           // 根据文件类型，生成不同的Markdown语法
           let markdownText = ''
-          const fileUrl = response.data.url
+          const fileUrl = "/api" + response.data.url
           
           if (isImage) {
             markdownText = `![${file.name}](${fileUrl})`
@@ -293,23 +293,26 @@ export default {
 }
 </script>
 
-<style scoped>
+<style>
 .markdown-editor {
-  border: 1px solid #e0e0e0;
+  border: 1px solid #dcdfe6;
   border-radius: 4px;
   display: flex;
   flex-direction: column;
   height: 100%;
-  min-height: 400px;
+  min-height: 500px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  background-color: #ffffff;
 }
 
 .editor-toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
-  border-bottom: 1px solid #e0e0e0;
-  background-color: #f5f7fa;
+  padding: 10px 15px;
+  border-bottom: 1px solid #ebeef5;
+  background-color: #f9fafc;
+  border-radius: 4px 4px 0 0;
 }
 
 .toolbar-left {
@@ -323,14 +326,15 @@ export default {
 }
 
 .md-tips {
-  font-size: 12px;
+  font-size: 13px;
   color: #909399;
+  font-style: italic;
 }
 
 .editor-content {
   display: flex;
   flex: 1;
-  min-height: 300px;
+  min-height: 400px;
 }
 
 .editor-content.edit .edit-area {
@@ -348,31 +352,34 @@ export default {
 
 .edit-area {
   height: 100%;
-  border-right: 1px solid #e0e0e0;
+  border-right: 1px solid #ebeef5;
 }
 
 .edit-area textarea {
   width: 100%;
   height: 100%;
-  min-height: 300px;
-  padding: 12px;
+  min-height: 400px;
+  padding: 20px;
   border: none;
   resize: none;
   outline: none;
-  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
-  font-size: 14px;
-  line-height: 1.6;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #303133;
+  background-color: #ffffff;
 }
 
 .preview-area {
-  padding: 12px;
+  padding: 20px;
   overflow-y: auto;
-  background-color: #fafafa;
+  background-color: #ffffff;
 }
 
 .markdown-preview {
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #303133;
 }
 
 .markdown-preview h1,
@@ -442,40 +449,51 @@ export default {
 .markdown-preview img {
   max-width: 100%;
   box-sizing: content-box;
+  display: block;
+  margin: 15px 0;
+  border-radius: 4px;
 }
 
 .markdown-preview table {
   border-collapse: collapse;
   width: 100%;
   margin-bottom: 16px;
+  border-radius: 4px;
+  overflow: hidden;
 }
 
 .markdown-preview table th,
 .markdown-preview table td {
-  padding: 6px 13px;
-  border: 1px solid #dfe2e5;
+  padding: 8px 16px;
+  border: 1px solid #ebeef5;
+}
+
+.markdown-preview table th {
+  background-color: #f5f7fa;
+  font-weight: 600;
 }
 
 .markdown-preview table tr {
   background-color: #fff;
-  border-top: 1px solid #c6cbd1;
+  border-top: 1px solid #ebeef5;
 }
 
 .markdown-preview table tr:nth-child(2n) {
-  background-color: #f6f8fa;
+  background-color: #fafafa;
 }
 
 .editor-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
-  border-top: 1px solid #e0e0e0;
-  background-color: #f5f7fa;
+  padding: 10px 15px;
+  border-top: 1px solid #ebeef5;
+  background-color: #f9fafc;
+  border-radius: 0 0 4px 4px;
 }
 
 .editor-status {
-  font-size: 12px;
+  font-size: 13px;
   color: #909399;
 }
 
@@ -491,7 +509,7 @@ export default {
   
   .edit-area {
     border-right: none;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid #ebeef5;
   }
 }
-</style> 
+</style>

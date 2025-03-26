@@ -75,7 +75,7 @@ public class FileController {
                 fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
             }
             String newFileName = UUID.randomUUID().toString() + fileExtension;
-            
+
             // 3. 保存文件
             File destFile = new File(blogsDir, newFileName);
             System.out.println("目标文件路径: " + destFile.getAbsolutePath());
@@ -129,7 +129,7 @@ public class FileController {
             String fileUrl = "/uploads/blogs/" + newFileName;
             System.out.println("生成的访问URL: " + fileUrl);
             System.out.println("=========== 博客图片上传结束 ===========");
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("url", fileUrl);
             return ResponseEntity.ok(response);
@@ -208,7 +208,7 @@ public class FileController {
                 fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
             }
             String newFileName = UUID.randomUUID().toString() + fileExtension;
-            
+
             // 3. 保存文件
             File destFile = new File(avatarDir, newFileName);
             System.out.println("目标文件路径: " + destFile.getAbsolutePath());

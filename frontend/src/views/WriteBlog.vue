@@ -55,13 +55,14 @@
       
       <el-form-item label="内容" prop="content">
         <div class="editor-container">
-          <!-- 这里可以集成富文本编辑器，如wangEditor、TinyMCE等 -->
-          <el-input 
-            v-model="formData.content" 
-            type="textarea" 
-            :rows="15" 
-            placeholder="请输入博客内容"
-          ></el-input>
+          <!-- 使用Markdown编辑器替代普通文本域 -->
+          <MarkdownEditor 
+            v-model:value="formData.content" 
+            :upload-headers="uploadHeaders"
+            upload-url="/api/blogs/upload"
+            @upload-success="handleImageSuccess"
+            @upload-error="handleUploadError"
+          />
         </div>
       </el-form-item>
       
@@ -104,10 +105,15 @@ import { useBlogStore } from '@/stores/blog'
 import { useCategoryStore } from '@/stores/category'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import MarkdownEditor from '@/components/MarkdownEditor.vue'
+
 import axios from 'axios'
 
 export default {
   name: 'WriteBlog',
+  components: {
+    MarkdownEditor
+  },
   setup() {
     const blogStore = useBlogStore()
     const categoryStore = useCategoryStore()
@@ -215,6 +221,25 @@ export default {
       return isImage && isLt2M
     }
     
+    const handleImageSuccess = (res) => {
+      console.log('图片上传成功，返回结果:', res)
+      let imageUrl = ''
+      
+      // 处理不同的返回格式
+      if (res.data && res.data.url) {
+        imageUrl = getImageUrl(res.data.url)
+      } else if (res.url) {
+        imageUrl = getImageUrl(res.url)
+      } else {
+        console.error('未找到有效的图片URL', res)
+        return '![图片上传失败]()'
+      }
+      
+      console.log('生成Markdown图片链接:', `![图片](${imageUrl})`)
+      // 返回markdown格式的图片链接，可以直接插入到编辑器中
+      return `![图片](${imageUrl})`
+    }
+    
     const submitForm = async () => {
       try {
         await blogFormRef.value.validate()//作用是触发表单验证
@@ -290,6 +315,7 @@ export default {
       handleCoverSuccess,
       handleUploadError,
       beforeCoverUpload,
+      handleImageSuccess,
       submitForm,
       resetForm,
       getImageUrl
@@ -323,6 +349,8 @@ export default {
 .editor-container {
   border: 1px solid #dcdfe6;
   border-radius: 4px;
+  min-height: 500px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .cover-uploader {

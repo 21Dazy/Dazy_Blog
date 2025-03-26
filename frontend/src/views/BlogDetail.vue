@@ -40,9 +40,9 @@
               <div class="author-name">{{ blog.author?.username || '匿名作者' }}</div>
               <div class="publish-info">
                 <span class="publish-date">{{ formatDate(blog.createdAt) }}</span>
-                <span class="category" v-if="blog.category">
+          <span class="category" v-if="blog.category">
                   <el-tag size="small" type="info">{{ blog.category.name }}</el-tag>
-                </span>
+          </span>
               </div>
             </div>
           </div>
@@ -62,7 +62,7 @@
                   class="like-icon"
                 ></i> 
                 {{ blog.likes || 0 }}
-              </span>
+          </span>
             </el-tooltip>
           </div>
         </div>
@@ -76,8 +76,8 @@
         <div v-if="blog.tags && blog.tags.length > 0" class="blog-tags">
           <el-tag 
             v-for="tag in blog.tags" 
-            :key="tag.id"
-            size="small"
+            :key="tag.id" 
+            size="small" 
             effect="plain"
             class="tag-item"
           >
@@ -321,7 +321,7 @@ export default {
         return '无效日期'
       }
     }
-
+    
     // 处理图片URL
     const getImageUrl = (url) => {
       if (!url) return ''

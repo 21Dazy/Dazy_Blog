@@ -12,12 +12,10 @@
       <el-empty description="该分类下暂无博客" />
     </div>
     
-    <div v-else class="blog-list">
-      <blog-card 
-        v-for="blog in blogs" 
-        :key="blog.id" 
-        :blog="blog"
-      />
+    <div v-else class="blog-grid">
+      <div class="blog-grid-item" v-for="blog in blogs" :key="blog.id">
+        <blog-card :blog="blog" />
+      </div>
       
       <el-pagination
         v-if="totalBlogs > 0"
@@ -147,6 +145,24 @@ export default {
   margin-top: 20px;
 }
 
+.blog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.blog-grid-item {
+  display: flex;
+  height: 100%;
+}
+
+.el-pagination {
+  margin-top: 30px;
+  text-align: center;
+  grid-column: 1 / -1;
+}
+
 .empty-blogs {
   background-color: #fff;
   border-radius: 4px;
@@ -154,8 +170,29 @@ export default {
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
 }
 
-.el-pagination {
-  margin-top: 20px;
-  text-align: center;
+/* 博客网格布局的响应式调整 */
+@media (min-width: 1441px) {
+  .blog-grid {
+    grid-template-columns: repeat(4, 1fr); /* 大屏幕显示4列 */
+  }
+}
+
+@media (min-width: 1201px) and (max-width: 1440px) {
+  .blog-grid {
+    grid-template-columns: repeat(3, 1fr); /* 中大屏幕显示3列 */
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1200px) {
+  .blog-grid {
+    grid-template-columns: repeat(2, 1fr); /* 中等屏幕显示2列 */
+  }
+}
+
+@media (max-width: 768px) {
+  .blog-grid {
+    grid-template-columns: 1fr; /* 小屏幕显示1列 */
+    gap: 15px;
+  }
 }
 </style> 

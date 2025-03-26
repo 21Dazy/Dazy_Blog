@@ -203,8 +203,22 @@ export default {
     
     // 处理Markdown编辑器中图片上传成功
     const handleImageSuccess = (res) => {
+      console.log('图片上传成功，返回结果:', res)
+      let imageUrl = ''
+      
+      // 处理不同的返回格式
+      if (res.data && res.data.url) {
+        imageUrl = getImageUrl(res.data.url)
+      } else if (res.url) {
+        imageUrl = getImageUrl(res.url)
+      } else {
+        console.error('未找到有效的图片URL', res)
+        return '![图片上传失败]()'
+      }
+      
+      console.log('生成Markdown图片链接:', `![图片](${imageUrl})`)
       // 返回markdown格式的图片链接，可以直接插入到编辑器中
-      return `![图片](${getImageUrl(res.url)})`
+      return `![图片](${imageUrl})`
     }
     
     const beforeCoverUpload = (file) => {
@@ -276,10 +290,12 @@ export default {
     }
     
     const getImageUrl = (url) => {
+      console.log('处理图片URL:', url)
       if (!url) return ''
       
       // 如果URL已经是完整路径，直接返回
       if (url.startsWith('http')) {
+        console.log('返回完整URL:', url)
         return url
       }
       
@@ -294,7 +310,9 @@ export default {
       }
       
       // 拼接完整URL
-      return `http://localhost:8080${url}`
+      const fullUrl = `http://localhost:8080${url}`
+      console.log('返回拼接URL:', fullUrl)
+      return fullUrl
     }
     
     return {
