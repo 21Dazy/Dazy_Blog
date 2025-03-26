@@ -368,10 +368,14 @@ public class BlogController {
     }
     
     @PostMapping("/blogs/{id}/like")
-    public ResponseEntity<?> likeBlog(@PathVariable Long id, @RequestParam(required = false) String username) {
+    public ResponseEntity<?> likeBlog(@PathVariable Long id, @RequestParam(required = false) String username ,@RequestParam(defaultValue = "true") Boolean isLiked) {
         try {
             // 目前博客服务中的likeBlog方法不需要userId参数
-            blogService.likeBlog(id);
+            if(isLiked){
+                blogService.likeBlog(id);
+            }else{
+                blogService.unlikeBlog(id);
+            }
             long likes = blogService.getLikes(id);
             return ResponseEntity.ok(likes);
         } catch (RuntimeException e) {

@@ -194,6 +194,7 @@ public class BlogServiceImpl implements BlogService {
     @Override
     @Transactional//这个注解表示这个方法是一个事务，事务是数据库中的一个概念，表示一组操作，要么全部成功，要么全部失败
     public void likeBlog(Long id) {
+        System.out.println("点赞博客ID: " + id);
         Blog blog = blogRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("博客不存在"));
         blog.setLikes(blog.getLikes() + 1);
@@ -207,4 +208,16 @@ public class BlogServiceImpl implements BlogService {
                 .orElseThrow(() -> new RuntimeException("博客不存在"));
         return blog.getLikes();
     }
+
+    @Override
+    @Transactional
+    public void unlikeBlog(Long id) {
+        System.out.println("取消点赞博客ID: " + id);
+        Blog blog = blogRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("博客不存在"));
+        blog.setLikes(blog.getLikes() - 1);
+        blogRepository.save(blog);
+    }
+    
+
 } 

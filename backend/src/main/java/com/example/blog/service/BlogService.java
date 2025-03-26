@@ -22,5 +22,6 @@ public interface BlogService {
     Page<Blog> findPublicByCategoryId(Long categoryId, Pageable pageable);
     void incrementViews(Long id);
     void likeBlog(Long id);
+    void unlikeBlog(Long id);
     long getLikes(Long id);
 } 

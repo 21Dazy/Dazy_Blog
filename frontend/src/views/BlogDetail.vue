@@ -147,6 +147,7 @@ import { useUserStore } from '../stores/user'
 import { ElMessage } from 'element-plus'
 import MarkdownRenderer from '../components/MarkdownRenderer.vue'
 import CommentSection from '../components/CommentSection.vue'
+import axios from 'axios'
 
 export default {
   name: 'BlogDetail',
@@ -226,11 +227,17 @@ export default {
         
         // 更新点赞数
         if (isLiked.value) {
+          
           blog.value.likes = (blog.value.likes || 0) + 1
         } else {
+          
           blog.value.likes = Math.max((blog.value.likes || 0) - 1, 0)
         }
-        
+        await axios.post(`/api/blogs/${blogId.value}/like`,null,{
+          params: {
+            isLiked: isLiked.value
+          }
+        })
         // 保存点赞状态到localStorage
         let likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]')
         if (isLiked.value) {
