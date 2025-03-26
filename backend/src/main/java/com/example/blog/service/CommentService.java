@@ -14,5 +14,5 @@ public interface CommentService {
     Page<Comment> findByBlogId(Long blogId, Pageable pageable);
     void likeComment(Long id);
     void unlikeComment(Long id);
-
+    Comment createReply(Long blogId, Long userId, String content, Long parentId);
 } 

@@ -40,6 +40,9 @@ public class Comment {
     @com.fasterxml.jackson.annotation.JsonBackReference(value = "comment-parent")
     private Comment parent;
 
+    @Column(name = "likes", nullable = false, columnDefinition = "INTEGER DEFAULT 0")
+    private Integer likes = 0;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 

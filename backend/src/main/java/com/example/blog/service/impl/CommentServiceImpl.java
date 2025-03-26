@@ -45,7 +45,15 @@ public class CommentServiceImpl implements CommentService {
         comment.setUser(user);
         comment.setContent(content);
         
-        return commentRepository.save(comment);
+        Comment savedComment = commentRepository.save(comment);
+        
+        // 确保用户信息被完全加载
+        User fullUser = savedComment.getUser();
+        fullUser.getId();
+        fullUser.getUsername();
+        fullUser.getAvatar();
+        
+        return savedComment;
     }
 
     @Override
@@ -60,7 +68,15 @@ public class CommentServiceImpl implements CommentService {
         }
         
         comment.setContent(content);
-        return commentRepository.save(comment);
+        Comment updatedComment = commentRepository.save(comment);
+        
+        // 确保用户信息被完全加载
+        User user = updatedComment.getUser();
+        user.getId();
+        user.getUsername();
+        user.getAvatar();
+        
+        return updatedComment;
     }
 
     @Override
@@ -87,7 +103,30 @@ public class CommentServiceImpl implements CommentService {
         Blog blog = blogRepository.findById(blogId)
                 .orElseThrow(() -> new RuntimeException("博客不存在"));
                 
-        return commentRepository.findByBlog(blog, pageable);
+        Page<Comment> comments = commentRepository.findByBlog(blog, pageable);
+        
+        // 确保每个评论的用户信息被完全加载
+        comments.getContent().forEach(comment -> {
+            if (comment.getUser() != null) {
+                // 触发加载用户的所有必要信息，解决懒加载问题
+                User user = comment.getUser();
+                user.getId();
+                user.getUsername();
+                user.getAvatar();
+                
+                // 如果评论有父评论，也加载父评论的用户信息
+                if (comment.getParent() != null) {
+                    User parentUser = comment.getParent().getUser();
+                    if (parentUser != null) {
+                        parentUser.getId();
+                        parentUser.getUsername();
+                        parentUser.getAvatar();
+                    }
+                }
+            }
+        });
+        
+        return comments;
     }
 
     @Override
@@ -95,7 +134,14 @@ public class CommentServiceImpl implements CommentService {
     public void likeComment(Long id) {
         Comment comment = commentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("评论不存在"));
-                
+        
+        // 增加点赞数
+        Integer currentLikes = comment.getLikes();
+        if (currentLikes == null) {
+            currentLikes = 0;
+        }
+        comment.setLikes(currentLikes + 1);
+        commentRepository.save(comment);
     }
 
     @Override
@@ -103,6 +149,56 @@ public class CommentServiceImpl implements CommentService {
     public void unlikeComment(Long id) {
         Comment comment = commentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("评论不存在"));
+        
+        // 确保点赞数不为负
+        Integer currentLikes = comment.getLikes();
+        if (currentLikes == null || currentLikes <= 0) {
+            comment.setLikes(0);
+        } else {
+            comment.setLikes(currentLikes - 1);
+        }
+        commentRepository.save(comment);
+    }
+
+    @Override
+    @Transactional
+    public Comment createReply(Long blogId, Long userId, String content, Long parentId) {
+        Blog blog = blogRepository.findById(blogId)
+                .orElseThrow(() -> new RuntimeException("博客不存在"));
                 
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+                
+        Comment parentComment = commentRepository.findById(parentId)
+                .orElseThrow(() -> new RuntimeException("父评论不存在"));
+                
+        // 确保父评论属于同一个博客
+        if (!parentComment.getBlog().getId().equals(blogId)) {
+            throw new RuntimeException("父评论与当前博客不匹配");
+        }
+        
+        Comment reply = new Comment();
+        reply.setBlog(blog);
+        reply.setUser(user);
+        reply.setContent(content);
+        reply.setParent(parentComment);  // 设置父评论
+        
+        Comment savedReply = commentRepository.save(reply);
+        
+        // 确保用户信息被完全加载
+        User fullUser = savedReply.getUser();
+        fullUser.getId();
+        fullUser.getUsername();
+        fullUser.getAvatar();
+        
+        // 加载父评论用户信息
+        if (savedReply.getParent() != null && savedReply.getParent().getUser() != null) {
+            User parentUser = savedReply.getParent().getUser();
+            parentUser.getId();
+            parentUser.getUsername();
+            parentUser.getAvatar();
+        }
+        
+        return savedReply;
     }
 } 

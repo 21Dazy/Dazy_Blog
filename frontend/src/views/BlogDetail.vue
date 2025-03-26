@@ -133,10 +133,9 @@
       </div>
       
       <!-- 评论区 -->
-      <CommentSection 
-        :targetId="blog.id"
-        targetType="blog"
-      />
+      <div class="comment-container">
+        <CommentList :blog-id="Number(blogId)" />
+      </div>
     </div>
   </div>
 </template>
@@ -148,14 +147,14 @@ import { useBlogStore } from '../stores/blog'
 import { useUserStore } from '../stores/user'
 import { ElMessage } from 'element-plus'
 import MarkdownRenderer from '../components/MarkdownRenderer.vue'
-import CommentSection from '../components/CommentSection.vue'
+import CommentList from '../components/blog/CommentList.vue'
 import axios from 'axios'
 
 export default {
   name: 'BlogDetail',
   components: {
     MarkdownRenderer,
-    CommentSection
+    CommentList
   },
   setup() {
     const route = useRoute()
@@ -602,6 +601,12 @@ export default {
   color: #909399;
 }
 
+/* 评论容器样式 */
+.comment-container {
+  padding: 20px 30px 30px;
+  border-top: 1px solid #f2f2f2;
+}
+
 /* 响应式调整 */
 @media (max-width: 768px) {
   .blog-meta {
@@ -620,6 +625,10 @@ export default {
   
   .blog-title {
     font-size: 1.5rem;
+  }
+  
+  .comment-container {
+    padding: 15px;
   }
 }
 </style> 
