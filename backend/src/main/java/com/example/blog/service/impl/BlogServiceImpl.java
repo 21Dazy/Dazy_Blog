@@ -63,8 +63,25 @@ public class BlogServiceImpl implements BlogService {
         if (blogRequest.getTags() != null && !blogRequest.getTags().isEmpty()) {
             Set<Tag> tags = new HashSet<>();
             for (BlogRequest.TagDto tagDto : blogRequest.getTags()) {
-                Tag tag = tagRepository.findById(tagDto.getId())
-                        .orElseThrow(() -> new RuntimeException("标签不存在: " + tagDto.getId()));
+                Tag tag;
+                if (tagDto.getId() != null) {
+                    // 使用已有标签
+                    tag = tagRepository.findById(tagDto.getId())
+                            .orElseThrow(() -> new RuntimeException("标签不存在: " + tagDto.getId()));
+                } else if (tagDto.getName() != null && !tagDto.getName().trim().isEmpty()) {
+                    // 根据名称查找标签，不存在则创建
+                    String tagName = tagDto.getName().trim();
+                    Optional<Tag> existingTag = tagRepository.findByName(tagName);
+                    if (existingTag.isPresent()) {
+                        tag = existingTag.get();
+                    } else {
+                        tag = new Tag();
+                        tag.setName(tagName);
+                        tag = tagRepository.save(tag);
+                    }
+                } else {
+                    continue; // 跳过无效标签
+                }
                 tags.add(tag);
             }
             blog.setTags(tags);
@@ -78,12 +95,12 @@ public class BlogServiceImpl implements BlogService {
     public Blog updateBlog(Long id, BlogRequest blogRequest, Long userId) {
         Blog blog = blogRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("博客不存在"));
-
+        
         // 确认是作者本人在修改
         if (!blog.getAuthor().getId().equals(userId)) {
             throw new RuntimeException("没有权限修改此博客");
         }
-
+        
         // 更新分类
         if (blogRequest.getCategoryId() != null) {
             Category category = categoryRepository.findById(blogRequest.getCategoryId())
@@ -104,15 +121,33 @@ public class BlogServiceImpl implements BlogService {
 
         // 更新标签
         if (blogRequest.getTags() != null) {
-            Set<Tag> tags = new HashSet<>();
+            // 清除旧标签关联
+            blog.getTags().clear();
+            
             for (BlogRequest.TagDto tagDto : blogRequest.getTags()) {
-                Tag tag = tagRepository.findById(tagDto.getId())
-                        .orElseThrow(() -> new RuntimeException("标签不存在: " + tagDto.getId()));
-                tags.add(tag);
+                Tag tag;
+                if (tagDto.getId() != null) {
+                    // 使用已有标签
+                    tag = tagRepository.findById(tagDto.getId())
+                            .orElseThrow(() -> new RuntimeException("标签不存在: " + tagDto.getId()));
+                } else if (tagDto.getName() != null && !tagDto.getName().trim().isEmpty()) {
+                    // 根据名称查找标签，不存在则创建
+                    String tagName = tagDto.getName().trim();
+                    Optional<Tag> existingTag = tagRepository.findByName(tagName);
+                    if (existingTag.isPresent()) {
+                        tag = existingTag.get();
+                    } else {
+                        tag = new Tag();
+                        tag.setName(tagName);
+                        tag = tagRepository.save(tag);
+                    }
+                } else {
+                    continue; // 跳过无效标签
+                }
+                blog.getTags().add(tag);
             }
-            blog.setTags(tags);
         }
-
+        
         return blogRepository.save(blog);
     }
 

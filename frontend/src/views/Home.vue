@@ -146,13 +146,14 @@
               <el-skeleton :rows="2" animated v-if="tagsLoading" />
               <div v-else-if="tags && tags.length > 0" class="tag-cloud">
                 <router-link 
-                  v-for="tag in tags" 
+                  v-for="tag in tags.slice(0, 20)" 
                   :key="tag.id" 
-                  :to="'/tag/' + tag.id"
+                  :to="'/tags/' + tag.id"
                   class="tag-item"
                   :style="getTagStyle(tag)"
                 >
-                  {{ tag.name }}
+                  {{ tag.name || '未命名标签' }}
+                  <small v-if="tag.count">({{ tag.count }})</small>
                 </router-link>
               </div>
               <div v-else class="empty-tags">
@@ -187,6 +188,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useBlogStore } from '../stores/blog'
 import { useCategoryStore } from '../stores/category'
+import { useTagStore } from '../stores/tag'
 import { useUserStore } from '../stores/user'
 import { useRoute, useRouter } from 'vue-router'
 import BlogCard from '../components/blog/BlogCard.vue'
@@ -201,6 +203,7 @@ export default {
   setup() {
     const blogStore = useBlogStore()
     const categoryStore = useCategoryStore()
+    const tagStore = useTagStore()
     const userStore = useUserStore()
     const route = useRoute()
     const router = useRouter()
@@ -211,16 +214,16 @@ export default {
     const sortBy = ref('createdAt')
     const currentCategory = ref(null)
     const currentTag = ref(null)
-    const tags = ref([])
-    const tagsLoading = ref(false)
+    const tagsLoading = computed(() => tagStore.loading)
     
-    const blogs = computed(() => blogStore.allBlogs)
+    const blogs = computed(() => blogStore.blogs)
     const totalBlogs = computed(() => blogStore.totalBlogs || 0)
     const loading = computed(() => blogStore.loading)
-    const categories = computed(() => categoryStore.allCategories)
+    const categories = computed(() => categoryStore.categories)
     const categoriesLoading = computed(() => categoryStore.loading)
     const recentBlogs = computed(() => blogStore.recentBlogs)
-    const currentUser = computed(() => userStore.user)
+    const currentUser = computed(() => userStore.currentUser)
+    const tags = computed(() => tagStore.tags)
     
     // 监听URL参数变化
     watch(() => route.query, (newQuery) => {
@@ -256,9 +259,16 @@ export default {
         // 获取分类、标签和博客列表
         await Promise.all([
           categoryStore.fetchCategories(),
-          fetchTags(),
+          tagStore.fetchTags(),
           fetchBlogs()
         ])
+        
+        // 打印标签数据，确认加载成功
+        console.log('标签数据加载情况:', {
+          tagsInStore: tagStore.tags,
+          tagsComputed: tags.value,
+          tagsCount: tags.value.length
+        })
         
         // 确保在数据加载后应用排序
         console.log("初始化排序:", sortBy.value);
@@ -315,36 +325,12 @@ export default {
         if (tag) {
           currentTag.value = tag
         } else {
-          // 模拟获取标签详情，实际项目中需要替换为实际API调用
-          currentTag.value = { id: tagId, name: `标签${tagId}` }
+          const tagData = await tagStore.fetchTagById(tagId)
+          currentTag.value = tagData
         }
       } catch (error) {
         console.error('获取标签信息失败:', error)
         currentTag.value = null
-      }
-    }
-    
-    // 获取标签列表
-    const fetchTags = async () => {
-      tagsLoading.value = true
-      try {
-        // 模拟标签数据，实际项目中需要替换为实际API调用
-        // await blogStore.fetchTags() 
-        tags.value = [
-          { id: 1, name: 'JavaScript', count: 8, weight: 3 },
-          { id: 2, name: 'Vue', count: 5, weight: 2 },
-          { id: 3, name: 'React', count: 3, weight: 1 },
-          { id: 4, name: 'Node.js', count: 4, weight: 2 },
-          { id: 5, name: 'CSS', count: 7, weight: 3 },
-          { id: 6, name: 'HTML', count: 6, weight: 2 },
-          { id: 7, name: 'TypeScript', count: 2, weight: 1 },
-          { id: 8, name: '前端', count: 10, weight: 4 },
-          { id: 9, name: '后端', count: 9, weight: 3 }
-        ]
-      } catch (error) {
-        console.error('获取标签失败:', error)
-      } finally {
-        tagsLoading.value = false
       }
     }
     
@@ -473,25 +459,26 @@ export default {
       return blogs.value.reduce((total, blog) => total + (blog.views || 0), 0)
     }
     
-    // 获取标签样式
+    // 获取标签样式，根据标签关联的博客数量设置不同的样式
     const getTagStyle = (tag) => {
-      const weight = tag.weight || Math.floor(Math.random() * 4) + 1
-      const fontSize = 12 + weight * 2
+      const count = tag.count || 0
+      const maxFontSize = 18
+      const minFontSize = 12
       
-      // 生成随机颜色
+      // 根据标签数量计算字体大小
+      let fontSize = Math.max(Math.min(Math.floor(count / 2) + minFontSize, maxFontSize), minFontSize)
+      
+      // 随机颜色
       const colors = [
-        '#409EFF', // 主题蓝
-        '#67C23A', // 成功绿
-        '#E6A23C', // 警告黄
-        '#F56C6C', // 危险红
-        '#909399'  // 信息灰
+        '#409EFF', '#67C23A', '#E6A23C', '#F56C6C', '#909399',
+        '#8E44AD', '#16A085', '#2C3E50', '#F39C12', '#7F8C8D'
       ]
-      
-      const colorIndex = Math.floor(Math.random() * colors.length)
+      const colorIndex = tag.id % colors.length
       
       return {
         fontSize: `${fontSize}px`,
-        color: colors[colorIndex]
+        color: colors[colorIndex],
+        fontWeight: count > 10 ? 'bold' : 'normal'
       }
     }
     
@@ -893,6 +880,7 @@ export default {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  margin-top: 10px;
 }
 
 .tag-item {
@@ -900,12 +888,20 @@ export default {
   padding: 4px 8px;
   text-decoration: none;
   border-radius: 4px;
-  transition: transform 0.2s;
+  transition: all 0.3s ease;
+  margin-bottom: 8px;
 }
 
 .tag-item:hover {
-  transform: scale(1.1);
+  background: rgba(64, 158, 255, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.tag-item small {
   opacity: 0.8;
+  font-size: 0.8em;
+  margin-left: 2px;
 }
 
 /* 最新文章列表 */
@@ -999,6 +995,15 @@ export default {
   
   .sidebar-widgets {
     margin-top: 20px;
+  }
+  
+  .tag-cloud {
+    gap: 6px;
+  }
+  
+  .tag-item {
+    padding: 2px 6px;
+    font-size: 12px !important;
   }
 }
 </style> 

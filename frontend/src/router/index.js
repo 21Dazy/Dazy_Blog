@@ -32,7 +32,7 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
-    path: '/edit/:id',
+    path: '/edit/:id',  
     name: 'EditBlog',
     component: () => import('@/views/EditBlog.vue'),
     meta: { requiresAuth: true }
@@ -50,6 +50,11 @@ const routes = [
   {
     path: '/tags',
     name: 'Tags',
+    component: () => import('@/views/Tags.vue')
+  },
+  {
+    path: '/tags/:id',
+    name: 'TagBlogs',
     component: () => import('@/views/Tags.vue')
   },
   {

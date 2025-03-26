@@ -74,14 +74,16 @@
         
         <!-- 标签列表 -->
         <div v-if="blog.tags && blog.tags.length > 0" class="blog-tags">
+          <span class="tags-label">标签：</span>
           <el-tag 
             v-for="tag in blog.tags" 
             :key="tag.id" 
             size="small" 
             effect="plain"
             class="tag-item"
+            @click="navigateToTag(tag.id)"
           >
-            {{ tag.name }}
+            {{ tag.name || '未命名标签' }}
           </el-tag>
         </div>
       </div>
@@ -352,6 +354,15 @@ export default {
       return `http://localhost:8080${url}`
     }
     
+    // 导航到标签页
+    const navigateToTag = (tagId) => {
+      if (!tagId) {
+        console.error('标签ID不存在')
+        return
+      }
+      router.push(`/tags/${tagId}`)
+    }
+    
     // 初始化加载
     onMounted(() => {
       loadBlogDetail()
@@ -362,10 +373,12 @@ export default {
       loading,
       isLiked,
       relatedBlogs,
+      blogId,
       toggleLike,
-      showShareOptions,
       formatDate,
-      getImageUrl
+      getImageUrl,
+      showShareOptions,
+      navigateToTag
     }
   }
 }
@@ -482,14 +495,27 @@ export default {
 }
 
 .blog-tags {
-  margin-top: 15px;
+  margin: 15px 0;
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+}
+
+.tags-label {
+  margin-right: 8px;
+  color: #606266;
 }
 
 .tag-item {
+  margin-right: 8px;
+  margin-bottom: 5px;
   cursor: pointer;
+  transition: all 0.3s;
+}
+
+.tag-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 /* 博客内容 */

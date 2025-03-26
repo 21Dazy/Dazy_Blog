@@ -57,6 +57,7 @@
 <script>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useBlogStore } from '@/stores/blog'
+import { useTagStore } from '@/stores/tag'
 import { useRoute, useRouter } from 'vue-router'
 import BlogCard from '@/components/blog/BlogCard.vue'
 import { ElMessage } from 'element-plus'
@@ -68,11 +69,12 @@ export default {
   },
   setup() {
     const blogStore = useBlogStore()
+    const tagStore = useTagStore()
     const route = useRoute()
     const router = useRouter()
     const loading = ref(true)
     const blogsLoading = computed(() => blogStore.loading)
-    const tags = ref([])
+    const tags = computed(() => tagStore.tags)
     const blogs = computed(() => blogStore.blogs)
     const totalBlogs = ref(0)
     const currentPage = ref(1)
@@ -80,22 +82,23 @@ export default {
     
     const selectedTagId = computed(() => route.params.id)
     const selectedTagName = computed(() => {
-      const tag = tags.value.find(t => t.id === selectedTagId.value)
+      const tag = tags.value.find(t => t.id == selectedTagId.value)
       return tag ? tag.name : ''
     })
     
     onMounted(async () => {
       try {
-        // 获取所有标签
-        await fetchTags()
+        console.log('Tags页面：开始加载标签数据...')
+        await tagStore.fetchTags()
+        console.log('Tags页面：标签数据加载完成', tags.value)
         
         // 如果URL中有标签ID，则获取该标签下的博客
         if (selectedTagId.value) {
           await fetchTagBlogs()
         }
       } catch (error) {
-        console.error('获取标签数据失败:', error)
-        ElMessage.error('获取标签数据失败')
+        console.error('Tags页面：加载标签失败', error)
+        ElMessage.error('加载标签失败，请稍后重试')
       } finally {
         loading.value = false
       }
@@ -111,43 +114,17 @@ export default {
       }
     })
     
-    const fetchTags = async () => {
-      try {
-        // 假设有一个获取所有标签的API
-        // const response = await axios.get('/api/tags')
-        // tags.value = response.data
-        
-        // 模拟数据
-        tags.value = [
-          { id: '1', name: 'JavaScript', count: 15 },
-          { id: '2', name: 'Vue', count: 10 },
-          { id: '3', name: 'React', count: 8 },
-          { id: '4', name: 'Angular', count: 5 },
-          { id: '5', name: 'Node.js', count: 12 },
-          { id: '6', name: 'TypeScript', count: 7 },
-          { id: '7', name: 'CSS', count: 9 },
-          { id: '8', name: 'HTML', count: 6 },
-          { id: '9', name: 'Spring Boot', count: 11 },
-          { id: '10', name: 'Java', count: 14 },
-          { id: '11', name: 'Python', count: 13 },
-          { id: '12', name: 'Docker', count: 4 }
-        ]
-      } catch (error) {
-        console.error('获取标签失败:', error)
-        ElMessage.error('获取标签失败')
-      }
-    }
-    
     const fetchTagBlogs = async () => {
       try {
-        // 获取标签下的博客
         const response = await blogStore.fetchBlogsByTag({
           tagId: selectedTagId.value,
           page: currentPage.value,
-          size: pageSize.value
+          size: pageSize.value,
+          sortBy: 'createdAt',
+          order: 'desc'
         })
         
-        totalBlogs.value = response.totalElements
+        totalBlogs.value = response.totalItems
       } catch (error) {
         console.error('获取标签博客失败:', error)
         ElMessage.error('获取标签博客失败')

@@ -69,6 +69,13 @@
         </div>
       </el-form-item>
       
+      <!-- 添加Markdown预览区域 -->
+      <el-form-item v-if="formData.content" label="预览" class="preview-section">
+        <div class="preview-container">
+          <MarkdownRenderer :markdown="formData.content" />
+        </div>
+      </el-form-item>
+      
       <el-form-item label="封面图" prop="coverImage">
         <el-upload
           class="cover-uploader"
@@ -103,25 +110,29 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useBlogStore } from '@/stores/blog'
 import { useCategoryStore } from '@/stores/category'
+import { useTagStore } from '@/stores/tag'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import MarkdownEditor from '@/components/MarkdownEditor.vue'
+import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 
 export default {
   name: 'EditBlog',
   components: {
-    MarkdownEditor
+    MarkdownEditor,
+    MarkdownRenderer
   },
   setup() {
     const blogStore = useBlogStore()
     const categoryStore = useCategoryStore()
+    const tagStore = useTagStore()
     const router = useRouter()
     const route = useRoute()
     const blogFormRef = ref(null)
     const loading = ref(true)
     const submitting = computed(() => blogStore.loading)
     const categories = computed(() => categoryStore.categories)
-    const tags = ref([])
+    const tags = computed(() => tagStore.tags)
     
     const blogId = computed(() => route.params.id)
     
@@ -167,9 +178,9 @@ export default {
         await categoryStore.fetchCategories();
         console.log('分类列表加载成功:', categories.value);
         
-        // 获取标签列表（假设有一个标签API）
-        // const tagResponse = await axios.get('/api/tags')
-        // tags.value = tagResponse.data
+        // 获取标签列表
+        await tagStore.fetchTags();
+        console.log('标签列表加载成功:', tags.value);
         
         // 获取博客详情
         console.log('开始请求博客详情，URL:', `/api/blogs/${blogId.value}`);
@@ -179,6 +190,7 @@ export default {
         // 填充表单数据
         formData.title = blogData.title;
         formData.categoryId = blogData.category ? blogData.category.id : '';
+        // 转换标签数据为ID数组
         formData.tags = blogData.tags ? blogData.tags.map(tag => tag.id) : [];
         formData.summary = blogData.summary;
         formData.content = blogData.content;
@@ -261,33 +273,28 @@ export default {
     
     const submitForm = async () => {
       try {
-        await blogFormRef.value.validate()
+        await blogFormRef.value.validate();
         
+        // 标签处理留给blogStore.updateBlog方法内部处理
+        // 直接传递原始的标签数据，不再需要在这里转换
         const blogData = {
           title: formData.title,
           categoryId: formData.categoryId,
-          tags: formData.tags.map(tag => {
-            if (typeof tag === 'string') {
-              return { name: tag }
-            } else {
-              return { id: tag }
-            }
-          }),
+          tags: formData.tags,  // 直接传递原始标签数据
           summary: formData.summary,
           content: formData.content,
           coverImage: formData.coverImage,
           status: formData.status
-        }
+        };
         
-        await blogStore.updateBlog(blogId.value, blogData)
-        
-        ElMessage.success('博客更新成功')
-        router.push(`/blog/${blogId.value}`)
+        const response = await blogStore.updateBlog(blogId.value, blogData);
+        ElMessage.success('博客更新成功');
+        router.push(`/blog/${response.id}`);
       } catch (error) {
-        console.error('更新博客失败:', error)
-        ElMessage.error(error.response?.data?.message || '更新博客失败，请稍后再试')
+        console.error('更新博客失败:', error);
+        ElMessage.error(error.response?.data?.message || '更新博客失败，请稍后再试');
       }
-    }
+    };
     
     const getImageUrl = (url) => {
       console.log('处理图片URL:', url)
@@ -395,5 +402,15 @@ export default {
   height: 178px;
   display: block;
   object-fit: cover;
+}
+
+.preview-section {
+  margin-top: 20px;
+}
+
+.preview-container {
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  padding: 10px;
 }
 </style> 

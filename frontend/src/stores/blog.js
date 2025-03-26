@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
+import { useTagStore } from './tag'
 
 export const useBlogStore = defineStore('blog', {
   state: () => ({
@@ -62,8 +63,16 @@ export const useBlogStore = defineStore('blog', {
     async createBlog(blogData) {
       try {
         this.loading = true
+        
+        // 处理标签，确保新标签被创建并获取ID
+        if (blogData.tags && blogData.tags.length > 0) {
+          const tagStore = useTagStore()
+          const processedTags = await tagStore.createTagsIfNeeded(blogData.tags)
+          blogData.tags = processedTags
+        }
+        
         const response = await axios.post('/api/auth/blogs', blogData)
-        this.blogs.push(response.data)
+        this.blogs.unshift(response.data) // 添加到列表开头
         return response.data
       } catch (error) {
         this.error = error.response?.data?.message || '创建博客失败'
@@ -76,14 +85,26 @@ export const useBlogStore = defineStore('blog', {
     async updateBlog(id, blogData) {
       try {
         this.loading = true
+        
+        // 处理标签，确保新标签被创建并获取ID
+        if (blogData.tags && blogData.tags.length > 0) {
+          const tagStore = useTagStore()
+          const processedTags = await tagStore.createTagsIfNeeded(blogData.tags)
+          blogData.tags = processedTags
+        }
+        
         const response = await axios.put(`/api/auth/blogs/${id}`, blogData)
+        
+        // 更新本地缓存中的博客
         const index = this.blogs.findIndex(blog => blog.id === id)
         if (index !== -1) {
           this.blogs[index] = response.data
         }
-        if (this.currentBlog?.id === id) {
+        
+        if (this.currentBlog && this.currentBlog.id === id) {
           this.currentBlog = response.data
         }
+        
         return response.data
       } catch (error) {
         this.error = error.response?.data?.message || '更新博客失败'
@@ -241,7 +262,43 @@ export const useBlogStore = defineStore('blog', {
       console.log(`设置排序方式为: ${sortBy}`);
       // 这里可以保存当前的排序方式供未来使用
       this.currentSortBy = sortBy;
-    }
+    },
 
+    // 修改标签博客获取方法
+    async fetchBlogsByTag(params) {
+      try {
+        this.loading = true
+        console.log('获取标签博客，参数:', params)
+        // 修正API路径，确保与后端匹配
+        const response = await axios.get(`/api/tag/${params.tagId}`, {
+          params: {
+            page: params.page - 1, // 因为后端是0索引开始
+            size: params.size,
+            sortBy: params.sortBy,
+            order: params.order
+          }
+        })
+        
+        console.log('标签博客获取结果:', response.data)
+        
+        this.blogs = response.data.blogs;
+        
+        // 保存第一篇博客作为当前博客
+        if (!response.data.blogs || response.data.blogs.length === 0) {
+          this.currentBlog = null;
+        } else {
+          this.currentBlog = response.data.blogs[0];
+        }
+        
+        return response.data;
+      } catch (error) {
+        console.error('获取标签博客失败:', error)
+        console.error('错误详情:', error.response?.data)
+        this.error = error.response?.data?.message || '获取标签博客失败'
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
   }
 })

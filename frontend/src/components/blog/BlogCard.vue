@@ -40,7 +40,7 @@
           effect="plain"
           @click="navigateToTag(tag.id)"
         >
-          {{ tag.name }}
+          {{ tag.name || '未命名标签' }}
         </el-tag>
       </div>
       <div v-else class="tags">
@@ -101,6 +101,8 @@ export default {
     const navigateToTag = (tagId) => {
       if (tagId) {
         router.push(`/tags/${tagId}`);
+      } else {
+        console.error('标签ID不存在');
       }
     }
     

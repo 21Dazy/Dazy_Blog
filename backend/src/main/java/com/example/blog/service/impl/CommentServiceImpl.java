@@ -89,4 +89,20 @@ public class CommentServiceImpl implements CommentService {
                 
         return commentRepository.findByBlog(blog, pageable);
     }
+
+    @Override
+    @Transactional
+    public void likeComment(Long id) {
+        Comment comment = commentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("评论不存在"));
+                
+    }
+
+    @Override
+    @Transactional
+    public void unlikeComment(Long id) {
+        Comment comment = commentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("评论不存在"));
+                
+    }
 } 

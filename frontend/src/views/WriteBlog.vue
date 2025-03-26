@@ -66,6 +66,13 @@
         </div>
       </el-form-item>
       
+      <!-- 添加Markdown预览区域 -->
+      <el-form-item v-if="formData.content" label="预览" class="preview-section">
+        <div class="preview-container">
+          <MarkdownRenderer :markdown="formData.content" />
+        </div>
+      </el-form-item>
+      
       <el-form-item label="封面图" prop="coverImage">
         <el-upload
           class="cover-uploader"
@@ -103,25 +110,29 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useBlogStore } from '@/stores/blog'
 import { useCategoryStore } from '@/stores/category'
+import { useTagStore } from '@/stores/tag'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import MarkdownEditor from '@/components/MarkdownEditor.vue'
+import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 
 import axios from 'axios'
 
 export default {
   name: 'WriteBlog',
   components: {
-    MarkdownEditor
+    MarkdownEditor,
+    MarkdownRenderer
   },
   setup() {
     const blogStore = useBlogStore()
     const categoryStore = useCategoryStore()
+    const tagStore = useTagStore()
     const router = useRouter()
     const blogFormRef = ref(null)
     const loading = computed(() => blogStore.loading)
     const categories = computed(() => categoryStore.categories)
-    const tags = ref([])
+    const tags = computed(() => tagStore.tags)
     
     // 添加上传头信息，包含token
     const uploadHeaders = computed(() => {
@@ -162,9 +173,8 @@ export default {
         // 获取分类列表
         await categoryStore.fetchCategories()
         
-        // 获取标签列表（假设有一个标签API）
-        // const tagResponse = await axios.get('/api/tags')
-        // tags.value = tagResponse.data
+        // 获取标签列表
+        await tagStore.fetchTags()
       } catch (error) {
         console.error('加载数据失败:', error)
         ElMessage.error('加载分类和标签失败')
@@ -242,22 +252,14 @@ export default {
     
     const submitForm = async () => {
       try {
-        await blogFormRef.value.validate()//作用是触发表单验证
-        console.log('formData:', formData.value)
+        await blogFormRef.value.validate()
         
-        // 处理标签数据
-        const tagData = formData.value.tags.map(tag => {
-          if (typeof tag === 'string') {
-            return { name: tag }
-          } else {
-            return { id: tag }
-          }
-        })
-        
+        // 标签处理留给blogStore.createBlog方法内部处理
+        // 直接传递原始的标签数据
         const blogData = {
           title: formData.value.title,
           categoryId: formData.value.categoryId,
-          tags: tagData,
+          tags: formData.value.tags,  // 直接传递原始标签数据
           summary: formData.value.summary,
           content: formData.value.content,
           coverImage: formData.value.coverImage,
@@ -384,5 +386,15 @@ export default {
   height: 178px;
   display: block;
   object-fit: cover;
+}
+
+.preview-section {
+  margin-top: 20px;
+}
+
+.preview-container {
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  padding: 10px;
 }
 </style> 

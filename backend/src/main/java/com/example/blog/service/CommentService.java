@@ -12,4 +12,7 @@ public interface CommentService {
     void deleteComment(Long id, Long userId);
     Optional<Comment> findById(Long id);
     Page<Comment> findByBlogId(Long blogId, Pageable pageable);
+    void likeComment(Long id);
+    void unlikeComment(Long id);
+
 } 
