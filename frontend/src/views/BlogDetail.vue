@@ -308,6 +308,7 @@ export default {
       if (!dateArray) return '未知日期'
       
       try {
+        console.log('格式化日期:', dateArray)
         // 尝试直接解析日期字符串
         const date = new Date(dateArray[0], dateArray[1] - 1, dateArray[2], dateArray[3], dateArray[4], dateArray[5])
   

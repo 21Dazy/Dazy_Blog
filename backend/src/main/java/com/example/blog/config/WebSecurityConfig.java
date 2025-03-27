@@ -29,6 +29,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
             .antMatchers("/api/users/**", "/users/**").permitAll()
             .antMatchers("/api/avatar/**", "/avatar/**").permitAll()
             .antMatchers("/api/uploads/**", "/uploads/**").permitAll()
+            .antMatchers("/api/search/**", "/search/**").permitAll()
             .anyRequest().authenticated()
             .and()
             .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);

@@ -45,6 +45,7 @@ public class Category {
     @UpdateTimestamp
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime updatedAt;
+
     
     // 构造函数
     public Category() {

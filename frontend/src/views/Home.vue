@@ -131,7 +131,7 @@
                 <li v-for="category in categories" :key="category.id">
                   <router-link :to="'/category/' + category.id">
                     {{ category.name }}
-                    <span class="category-count">{{ category.count || 0 }}</span>
+                    <span class="category-count">{{}}</span>
                   </router-link>
                 </li>
               </ul>
@@ -229,22 +229,21 @@ export default {
     watch(() => route.query, (newQuery) => {
       if (newQuery.search) {
         searchKeyword.value = newQuery.search
-        blogStore.setSearch(newQuery.search)
       }
       
       if (newQuery.category) {
         fetchCategoryInfo(newQuery.category)
-        blogStore.setCategory(newQuery.category)
+        blogStore.setCategory && blogStore.setCategory(newQuery.category)
       }
       
       if (newQuery.tag) {
         fetchTagInfo(newQuery.tag)
-        blogStore.setTag(newQuery.tag)
+        blogStore.setTag && blogStore.setTag(newQuery.tag)
       }
       
       if (newQuery.page) {
         currentPage.value = parseInt(newQuery.page) || 1
-        blogStore.goToPage(currentPage.value)
+        blogStore.goToPage && blogStore.goToPage(currentPage.value)
       }
       
       if (newQuery.sort) {
@@ -259,9 +258,35 @@ export default {
         // 获取分类、标签和博客列表
         await Promise.all([
           categoryStore.fetchCategories(),
-          tagStore.fetchTags(),
-          fetchBlogs()
+          tagStore.fetchTags()
         ])
+        
+        // 检查URL是否有搜索参数
+        if (route.query.search) {
+          searchKeyword.value = route.query.search
+          await handleSearch()
+        } else if (route.query.category) {
+          // 处理分类筛选
+          fetchCategoryInfo(route.query.category)
+          await blogStore.fetchBlogsByCategory({
+            categoryId: route.query.category,
+            page: currentPage.value,
+            size: pageSize.value,
+            sortBy: sortBy.value
+          })
+        } else if (route.query.tag) {
+          // 处理标签筛选
+          fetchTagInfo(route.query.tag)
+          await blogStore.fetchBlogsByTag({
+            tagId: route.query.tag,
+            page: currentPage.value,
+            size: pageSize.value,
+            sortBy: sortBy.value
+          })
+        } else {
+          // 没有筛选条件，获取全部博客
+          await fetchBlogs()
+        }
         
         // 打印标签数据，确认加载成功
         console.log('标签数据加载情况:', {
@@ -348,19 +373,19 @@ export default {
     }
     
     // 处理搜索
-    const handleSearch = () => {
+    const handleSearch = async () => {
       if (!searchKeyword.value.trim()) {
         ElMessage.warning('请输入搜索关键词')
         return
       }
       
-      currentPage.value = 1
-      
-      // 更新URL参数
-      const query = { ...route.query, search: searchKeyword.value, page: 1 }
-      router.push({ path: route.path, query })
-      
-      blogStore.setSearch(searchKeyword.value)
+      // 跳转到搜索结果页面
+      router.push({
+        path: '/search',
+        query: {
+          q: searchKeyword.value
+        }
+      })
     }
     
     // 处理排序变化
@@ -426,7 +451,7 @@ export default {
     }
     
     // 清除搜索筛选
-    const clearSearchFilter = () => {
+    const clearSearchFilter = async () => {
       searchKeyword.value = ''
       
       // 更新URL参数
@@ -434,7 +459,17 @@ export default {
       delete query.search
       router.push({ path: route.path, query })
       
-      blogStore.setSearch('')
+      // 设置搜索关键词为空
+      blogStore.setSearch && blogStore.setSearch('')
+      
+      // 重新加载所有博客
+      try {
+        await fetchBlogs()
+        ElMessage.success('已清除搜索筛选')
+      } catch (error) {
+        console.error('重新加载博客失败:', error)
+        ElMessage.error('重新加载数据失败，请稍后重试')
+      }
     }
     
     // 获取列表标题
