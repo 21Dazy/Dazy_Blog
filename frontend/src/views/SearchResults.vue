@@ -31,10 +31,19 @@
           @change="handleSortChange" 
           class="sort-select"
         >
-          <el-option label="相关度" value="relevance" />
           <el-option label="最新发布" value="createdAt" />
           <el-option label="最多阅读" value="views" />
+          <el-option label="最多点赞" value="likes" />
         </el-select>
+        
+        <!-- 添加升降序选择 -->
+        <el-button
+          :icon="sortDirection === 'desc' ? 'ArrowDown' : 'ArrowUp'"
+          size="small"
+          class="direction-button"
+          @click="toggleSortDirection"
+          circle
+        />
       </div>
     </div>
 
@@ -114,16 +123,18 @@
       </div>
       
       <!-- 分页器 -->
-      <el-pagination
-        v-if="totalBlogs > pageSize"
-        layout="prev, pager, next"
-        :total="totalBlogs"
-        :page-size="pageSize"
-        :current-page="currentPage"
-        @current-change="handlePageChange"
-        hide-on-single-page
-        background
-      />
+      <div class="pagination-container">
+        <el-pagination
+          v-if="totalBlogs > pageSize"
+          layout="prev, pager, next"
+          :total="totalBlogs"
+          :page-size="pageSize"
+          :current-page="currentPage"
+          @current-change="handlePageChange"
+          hide-on-single-page
+          background
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -144,11 +155,13 @@ export default {
     const searchKeyword = ref('')
     const currentPage = ref(1)
     const pageSize = ref(10)
-    const sortBy = ref('relevance')
+    const sortBy = ref('createdAt')
     const result = ref(null)
+    const sortDirection = ref('desc')
     
     const blogs = computed(() => blogStore.blogs)
-    const totalBlogs = computed(() => blogStore.totalItems || result?.total || 0)
+    const totalBlogs = computed(() => blogStore.totalItems || 0)
+    const totalPages = computed(() => blogStore.totalPages || 1)
     const loading = computed(() => blogStore.loading)
     
     // 获取URL中的搜索关键词
@@ -163,6 +176,10 @@ export default {
       
       if (route.query.sort) {
         sortBy.value = route.query.sort
+      }
+      
+      if (route.query.order) {
+        sortDirection.value = route.query.order
       }
     }
     
@@ -180,13 +197,14 @@ export default {
         console.log('执行搜索，关键词:', searchKeyword.value)
         console.log('当前页:', currentPage.value)
         console.log('排序方式:', sortBy.value)
+        console.log('排序方向:', sortDirection.value)
         
         // 确保参数格式匹配blog.js中的searchBlogs方法
         const result = await blogStore.searchBlogs(searchKeyword.value, {
           page: currentPage.value,
           size: pageSize.value,
           sortBy: sortBy.value,
-          order: 'desc' // 默认降序排列
+          order: sortDirection.value
         })
         
         console.log('搜索完成，结果:', result)
@@ -218,7 +236,8 @@ export default {
         query: {
           q: searchKeyword.value,
           page: 1,
-          sort: sortBy.value
+          sort: sortBy.value,
+          order: sortDirection.value
         }
       })
     }
@@ -227,45 +246,22 @@ export default {
     const handleSortChange = async () => {
       console.log('更改排序方式:', sortBy.value)
       
-      // 如果选择的是"相关度"排序，需要向后端请求新的排序结果
-      if (sortBy.value === 'relevance') {
-        try {
-          // 更新URL参数并重新执行搜索
-          router.push({
-            path: '/search',
-            query: {
-              q: searchKeyword.value,
-              page: currentPage.value,
-              sort: sortBy.value
-            }
-          })
-          
-          // 不需要调用performSearch，因为watch会自动触发
-        } catch (error) {
-          console.error('排序请求失败:', error)
-          ElMessage.error('更改排序方式失败，请稍后重试')
-        }
-      } else {
-        // 对于其他排序方式，可以在客户端进行排序
-        try {
-          // 应用客户端排序
-          blogStore.blogsSortBy(sortBy.value)
-          
-          // 更新URL参数
-          router.push({
-            path: '/search',
-            query: {
-              q: searchKeyword.value,
-              page: currentPage.value,
-              sort: sortBy.value
-            }
-          })
-          
-          ElMessage.success(`已按${getSortLabel(sortBy.value)}排序`)
-        } catch (error) {
-          console.error('客户端排序失败:', error)
-          ElMessage.error('排序失败，请稍后重试')
-        }
+      try {
+        // 更新URL参数并重新执行搜索
+        router.push({
+          path: '/search',
+          query: {
+            q: searchKeyword.value,
+            page: currentPage.value,
+            sort: sortBy.value,
+            order: sortDirection.value
+          }
+        })
+        
+        ElMessage.success(`已按${getSortLabel(sortBy.value)}${sortDirection.value === 'asc' ? '升序' : '降序'}排序`)
+      } catch (error) {
+        console.error('排序请求失败:', error)
+        ElMessage.error('更改排序方式失败，请稍后重试')
       }
     }
     
@@ -275,7 +271,6 @@ export default {
         case 'createdAt': return '最新发布'
         case 'views': return '阅读量'
         case 'likes': return '点赞量'
-        case 'relevance': return '相关度'
         default: return sortValue
       }
     }
@@ -336,6 +331,22 @@ export default {
       return `http://localhost:8080${url}`
     }
     
+    // 切换排序方向
+    const toggleSortDirection = async () => {
+      sortDirection.value = sortDirection.value === 'desc' ? 'asc' : 'desc'
+      
+      // 更新URL参数
+      router.push({
+        path: '/search',
+        query: {
+          q: searchKeyword.value,
+          page: currentPage.value,
+          sort: sortBy.value,
+          order: sortDirection.value
+        }
+      })
+    }
+    
     onMounted(() => {
       updateSearchKeyword()
       performSearch()
@@ -345,16 +356,19 @@ export default {
       searchKeyword,
       blogs,
       totalBlogs,
+      totalPages,
       loading,
       currentPage,
       pageSize,
       sortBy,
+      sortDirection,
       handleSearch,
       handleSortChange,
       handlePageChange,
       formatDate,
       getImageUrl,
-      getSortLabel
+      getSortLabel,
+      toggleSortDirection
     }
   }
 }
@@ -573,7 +587,7 @@ export default {
   color: #606266;
 }
 
-.el-pagination {
+.pagination-container {
   margin-top: 30px;
   text-align: center;
 }

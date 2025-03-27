@@ -138,7 +138,7 @@
       
       // 当前用户是否可以编辑/删除评论
       const canEdit = computed(() => {
-        return userStore.isLoggedIn && 
+        return userStore.isAuthenticated && 
                userStore.currentUser && 
                props.comment.user && 
                userStore.currentUser.id === props.comment.user.id
@@ -148,7 +148,7 @@
       
       // 点赞评论
       const handleLike = async () => {
-        if (!userStore.isLoggedIn) {
+        if (!userStore.isAuthenticated) {
           ElMessage.warning('请先登录再点赞')
           return
         }
@@ -169,7 +169,7 @@
       
       // 切换回复框显示状态
       const toggleReply = () => {
-        if (!userStore.isLoggedIn) {
+        if (!userStore.isAuthenticated) {
           ElMessage.warning('请先登录再回复')
           return
         }

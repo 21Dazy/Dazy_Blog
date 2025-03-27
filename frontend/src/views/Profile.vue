@@ -135,13 +135,15 @@
           </el-table>
           
           <el-pagination
-            v-if="totalBlogs > 0"
+            v-if="totalBlogs > pageSize"
             layout="prev, pager, next"
             :total="totalBlogs"
             :page-size="pageSize"
             :current-page="currentPage"
             @current-change="handlePageChange"
             class="pagination"
+            background
+            hide-on-single-page
           />
         </div>
       </el-tab-pane>
@@ -171,7 +173,8 @@ export default {
     const passwordLoading = ref(false)
     const blogsLoading = computed(() => blogStore.loading)
     const blogs = computed(() => blogStore.blogs)
-    const totalBlogs = ref(0)
+    const totalBlogs = computed(() => blogStore.totalItems || 0)
+    const totalPages = computed(() => blogStore.totalPages || 1)
     const currentPage = ref(1)
     const pageSize = ref(10)
     
@@ -265,24 +268,19 @@ export default {
       if (!userId.value) return
       
       try {
-        blogsLoading.value = true;
+        console.log('获取用户博客，用户ID:', userId.value, '页码:', currentPage.value)
         const response = await blogStore.fetchUserBlogs({
           userId: userId.value,
           page: currentPage.value,
-          size: pageSize.value
+          size: pageSize.value,
+          sortBy: 'createdAt',
+          order: 'desc'
         })
         
-        // 重置博客列表数据
-        blogs.value = blogStore.blogs;
-        
-        if (response && response.totalElements) {
-          totalBlogs.value = response.totalElements
-        }
+        console.log('获取用户博客结果:', response)
       } catch (error) {
         console.error('获取用户博客失败:', error)
         ElMessage.error('获取用户博客失败')
-      } finally {
-        blogsLoading.value = false;
       }
     }
     
@@ -477,6 +475,7 @@ export default {
       blogsLoading,
       blogs,
       totalBlogs,
+      totalPages,
       currentPage,
       pageSize,
       uploadHeaders,

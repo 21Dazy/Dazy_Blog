@@ -13,6 +13,8 @@
               {{ category.name }}
             </el-menu-item>
           </el-sub-menu>
+          <el-menu-item index="/tags">标签</el-menu-item>
+          <el-menu-item index="/archives">归档</el-menu-item>
           <el-menu-item index="/about">关于</el-menu-item>
         </el-menu>
       </div>
@@ -65,10 +67,20 @@ export default {
     const userStore = useUserStore()
     const categoryStore = useCategoryStore()
     
-    const activeIndex = ref('/')
+    const activeIndex = ref(router.currentRoute.value.path)
     const categories = computed(() => categoryStore.allCategories)
     const isAuthenticated = computed(() => userStore.isAuthenticated)
     const currentUser = computed(() => userStore.currentUser)
+
+    // 监听路由变化，更新activeIndex
+    watch(() => router.currentRoute.value.path, (newPath) => {
+      // 将路径转换为菜单索引
+      if (newPath.startsWith('/category/')) {
+        activeIndex.value = 'categories'
+      } else {
+        activeIndex.value = newPath
+      }
+    }, { immediate: true })
 
     onMounted(async () => {
       try {
@@ -196,5 +208,17 @@ export default {
   width: 30px;
   height: 30px;
   object-fit: cover;
+}
+
+/* 添加自定义菜单样式 */
+:deep(.el-menu--horizontal > .el-sub-menu.is-active .el-sub-menu__title) {
+  border-bottom: 2px solid #409EFF !important;
+  color: #409EFF !important;
+}
+
+:deep(.el-menu-item.is-active),
+:deep(.el-menu--horizontal > .el-menu-item.is-active) {
+  color: #409EFF !important;
+  border-bottom: 2px solid #409EFF !important;
 }
 </style> 

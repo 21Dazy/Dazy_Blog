@@ -5,7 +5,7 @@
     </h3>
     
     <!-- 评论输入框 -->
-    <div v-if="userStore.isLoggedIn" class="comment-form">
+    <div v-if="userStore.isAuthenticated" class="comment-form">
       <div class="user-avatar">
         <img :src="getUserAvatar(userStore.currentUser)" alt="头像" />
       </div>

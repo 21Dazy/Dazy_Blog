@@ -3,6 +3,20 @@
     <div class="archives-header">
       <h2>博客归档</h2>
       <p>按时间查看所有博客</p>
+      
+      <!-- 添加年份快速导航 -->
+      <div class="year-navigation" v-if="yearList.length > 1">
+        <span class="year-nav-label">快速导航:</span>
+        <el-tag 
+          v-for="year in yearList" 
+          :key="year" 
+          class="year-tag"
+          :effect="selectedYear === year ? 'dark' : 'plain'"
+          @click="jumpToYear(year)"
+        >
+          {{ year }}年
+        </el-tag>
+      </div>
     </div>
     
     <el-skeleton :rows="10" animated v-if="loading" />
@@ -23,7 +37,11 @@
           :hollow="getRandomHollow()"
         >
           <el-card class="archive-card">
-            <h3>{{ month }} ({{ blogs.length }}篇)</h3>
+            <h3>
+              <a href="javascript:void(0)" @click="jumpToMonth(month)" class="month-link">
+                {{ month }} ({{ blogs.length }}篇)
+              </a>
+            </h3>
             <ul class="archive-list">
               <li v-for="blog in blogs" :key="blog.id" class="archive-item">
                 <span class="archive-date">{{ formatDate(blog.createdAt) }}</span>
@@ -38,118 +56,88 @@
           </el-card>
         </el-timeline-item>
       </el-timeline>
+      
+      <!-- 添加分页组件 -->
+      <div class="pagination-container" v-if="totalItems > pageSize">
+        <el-pagination
+          layout="prev, pager, next"
+          :total="totalItems"
+          :page-size="pageSize"
+          :current-page="currentPage"
+          @current-change="handlePageChange"
+          background
+          hide-on-single-page
+        />
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useBlogStore } from '@/stores/blog'
 import { ElMessage } from 'element-plus'
+import { useRoute, useRouter } from 'vue-router'
+import { Calendar } from '@element-plus/icons-vue'
 
 export default {
   name: 'Archives',
+  components: {
+    Calendar
+  },
   setup() {
-    const blogStore = useBlogStore()
     const loading = ref(true)
-    const blogs = ref([])
     const archiveData = ref({})
+    const blogs = ref([])
+    const blogStore = useBlogStore()
+    const route = useRoute()
+    const router = useRouter()
     
-    onMounted(async () => {
-      try {
-        // 获取所有博客
-        await fetchAllBlogs()
-        
-        // 按月份归档博客
-        organizeByMonth()
-      } catch (error) {
-        console.error('获取归档数据失败:', error)
-        ElMessage.error('获取归档数据失败')
-      } finally {
-        loading.value = false
-      }
-    })
+    // 添加分页相关状态
+    const currentPage = ref(1)
+    const pageSize = ref(20) // 归档页可以显示更多条目
+    const totalItems = computed(() => blogStore.totalItems || 0)
+    const totalPages = computed(() => blogStore.totalPages || 1)
     
-    const fetchAllBlogs = async () => {
-      try {
-        // 假设有一个获取所有博客的API
-        // const response = await axios.get('/api/blogs/all')
-        // blogs.value = response.data
-        
-        // 模拟数据
-        blogs.value = [
-          {
-            id: '1',
-            title: 'Vue3 组合式API详解',
-            createdAt: '2023-05-15T10:30:00',
-            category: { id: '1', name: 'Vue' }
-          },
-          {
-            id: '2',
-            title: 'React Hooks最佳实践',
-            createdAt: '2023-05-10T14:20:00',
-            category: { id: '2', name: 'React' }
-          },
-          {
-            id: '3',
-            title: 'TypeScript高级类型',
-            createdAt: '2023-04-28T09:15:00',
-            category: { id: '3', name: 'TypeScript' }
-          },
-          {
-            id: '4',
-            title: 'Spring Boot实战',
-            createdAt: '2023-04-15T16:45:00',
-            category: { id: '4', name: 'Spring Boot' }
-          },
-          {
-            id: '5',
-            title: 'Node.js性能优化',
-            createdAt: '2023-03-22T11:30:00',
-            category: { id: '5', name: 'Node.js' }
-          },
-          {
-            id: '6',
-            title: 'CSS Grid布局详解',
-            createdAt: '2023-03-10T08:20:00',
-            category: { id: '6', name: 'CSS' }
-          },
-          {
-            id: '7',
-            title: 'JavaScript异步编程',
-            createdAt: '2023-02-28T13:40:00',
-            category: { id: '7', name: 'JavaScript' }
-          },
-          {
-            id: '8',
-            title: 'Docker容器化部署',
-            createdAt: '2023-02-15T10:10:00',
-            category: { id: '8', name: 'Docker' }
-          },
-          {
-            id: '9',
-            title: 'Vue3与TypeScript结合使用',
-            createdAt: '2023-01-20T15:30:00',
-            category: { id: '1', name: 'Vue' }
-          },
-          {
-            id: '10',
-            title: 'RESTful API设计原则',
-            createdAt: '2023-01-05T09:50:00',
-            category: { id: '9', name: 'API' }
-          }
-        ]
-      } catch (error) {
-        console.error('获取博客列表失败:', error)
-        ElMessage.error('获取博客列表失败')
-      }
+    // 归档筛选参数
+    const yearList = ref([])
+    const selectedYear = ref(null)
+    const selectedMonth = ref(null)
+    
+    // 添加一个辅助函数，将日期数组转换为Date对象
+    const parseDate = (dateArr) => {
+      if (!dateArr || !Array.isArray(dateArr)) return new Date();
+      
+      // 数组格式: [年, 月, 日, 时, 分, 秒, 毫秒]
+      // 注意: JavaScript中月份是从0开始的，所以需要减1
+      const year = dateArr[0];
+      const month = dateArr[1] - 1; // 月份需要减1
+      const day = dateArr[2];
+      const hour = dateArr[3] || 0;
+      const minute = dateArr[4] || 0;
+      const second = dateArr[5] || 0;
+      const millisecond = dateArr[6] || 0;
+      
+      return new Date(year, month, day, hour, minute, second, millisecond);
+    };
+    
+    // 提取年份列表
+    const extractYears = () => {
+      const years = new Set()
+      blogs.value.forEach(blog => {
+        // 使用parseDate函数处理创建日期
+        const date = parseDate(blog.createdAt);
+        years.add(date.getFullYear())
+      })
+      yearList.value = Array.from(years).sort((a, b) => b - a) // 降序排列
     }
     
     const organizeByMonth = () => {
       const data = {}
       
       blogs.value.forEach(blog => {
-        const date = new Date(blog.createdAt)
+        // 使用parseDate函数处理创建日期
+        const date = parseDate(blog.createdAt);
         const month = date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' })
         
         if (!data[month]) {
@@ -174,8 +162,58 @@ export default {
       archiveData.value = sortedData
     }
     
-    const formatDate = (dateString) => {
-      const date = new Date(dateString)
+    const fetchBlogs = async () => {
+      try {
+        loading.value = true
+        
+        // 构建查询参数
+        const params = {
+          page: currentPage.value - 1, // 后端分页从0开始
+          size: pageSize.value,
+          sortBy: 'createdAt',
+          direction: 'desc'
+        }
+        
+        // 如果有年份和月份筛选，添加日期范围
+        if (selectedYear.value) {
+          const year = parseInt(selectedYear.value)
+          
+          if (selectedMonth.value) {
+            // 如果有月份筛选，计算该月的开始和结束日期
+            const month = parseInt(selectedMonth.value) - 1 // JavaScript月份从0开始
+            const startDate = new Date(year, month, 1)
+            const endDate = new Date(year, month + 1, 0) // 月末
+            
+            params.startDate = startDate.toISOString().split('T')[0]
+            params.endDate = endDate.toISOString().split('T')[0]
+          } else {
+            // 只有年份筛选，计算该年的开始和结束日期
+            const startDate = new Date(year, 0, 1)
+            const endDate = new Date(year, 11, 31)
+            
+            params.startDate = startDate.toISOString().split('T')[0]
+            params.endDate = endDate.toISOString().split('T')[0]
+          }
+        }
+        
+        // 使用分页获取博客
+        const result = await blogStore.fetchBlogs(params)
+        
+        blogs.value = result?.blogs || blogStore.blogs || []
+        
+        // 生成按月份组织的博客数据
+        organizeByMonth()
+      } catch (error) {
+        console.error('获取博客列表失败:', error)
+        ElMessage.error('获取博客列表失败')
+      } finally {
+        loading.value = false
+      }
+    }
+    
+    const formatDate = (dateArr) => {
+      // 使用parseDate函数处理创建日期
+      const date = parseDate(dateArr);
       return date.toLocaleDateString('zh-CN', {
         month: 'numeric',
         day: 'numeric'
@@ -197,13 +235,114 @@ export default {
       return Math.random() > 0.5
     }
     
+    // 处理分页变化
+    const handlePageChange = async (page) => {
+      currentPage.value = page
+      
+      // 更新URL参数
+      const query = { page }
+      if (selectedYear.value) {
+        query.year = selectedYear.value
+      }
+      if (selectedMonth.value) {
+        query.month = selectedMonth.value
+      }
+      
+      router.push({
+        path: '/archives',
+        query
+      })
+    }
+    
+    // 跳转到指定年份
+    const jumpToYear = (year) => {
+      selectedYear.value = year
+      selectedMonth.value = null
+      currentPage.value = 1
+      
+      router.push({
+        path: '/archives',
+        query: { year }
+      })
+    }
+    
+    // 跳转到指定月份
+    const jumpToMonth = (monthText) => {
+      // 解析月份文本，如"2023年6月"
+      const matches = monthText.match(/(\d+)年(\d+)月/)
+      if (matches) {
+        const year = matches[1]
+        const month = matches[2]
+        
+        selectedYear.value = year
+        selectedMonth.value = month
+        currentPage.value = 1
+        
+        router.push({
+          path: '/archives',
+          query: { year, month }
+        })
+      }
+    }
+    
+    // 监听URL中的页码和筛选参数
+    watch(() => route.query, (newQuery) => {
+      if (newQuery.page) {
+        currentPage.value = parseInt(newQuery.page) || 1
+      }
+      
+      if (newQuery.year) {
+        selectedYear.value = newQuery.year
+      } else {
+        selectedYear.value = null
+      }
+      
+      if (newQuery.month) {
+        selectedMonth.value = newQuery.month
+      } else {
+        selectedMonth.value = null
+      }
+      
+      fetchBlogs()
+    })
+    
+    onMounted(async () => {
+      // 手动处理初始URL参数
+      const query = route.query
+      
+      if (query.page) {
+        currentPage.value = parseInt(query.page) || 1
+      }
+      
+      if (query.year) {
+        selectedYear.value = query.year
+      }
+      
+      if (query.month) {
+        selectedMonth.value = query.month
+      }
+      
+      await fetchBlogs()
+      extractYears()
+    })
+    
     return {
       loading,
       archiveData,
       formatDate,
       getRandomType,
       getRandomSize,
-      getRandomHollow
+      getRandomHollow,
+      handlePageChange,
+      currentPage,
+      pageSize,
+      totalItems,
+      totalPages,
+      yearList,
+      selectedYear,
+      selectedMonth,
+      jumpToYear,
+      jumpToMonth
     }
   }
 }
@@ -300,5 +439,38 @@ export default {
 
 .archive-category {
   margin-left: auto;
+}
+
+.pagination-container {
+  margin-top: 30px;
+  text-align: center;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.year-navigation {
+  margin-top: 10px;
+  text-align: center;
+}
+
+.year-nav-label {
+  margin-right: 10px;
+  color: #666;
+}
+
+.year-tag {
+  cursor: pointer;
+  margin: 0 5px;
+}
+
+.month-link {
+  color: #333;
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.month-link:hover {
+  color: #409EFF;
 }
 </style> 

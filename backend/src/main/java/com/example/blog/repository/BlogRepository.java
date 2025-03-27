@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -28,4 +29,7 @@ public interface BlogRepository extends JpaRepository<Blog, Long> {
     
     @Query("SELECT b FROM Blog b WHERE b.title LIKE %:keyword% OR b.summary LIKE %:keyword% OR b.content LIKE %:keyword%")
     Page<Blog> searchByKeyword(@Param("keyword") String keyword, Pageable pageable);
+    
+    // 按创建时间范围查询博客
+    Page<Blog> findByCreatedAtBetween(LocalDateTime startDate, LocalDateTime endDate, Pageable pageable);
 } 

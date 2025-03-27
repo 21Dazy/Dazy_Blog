@@ -70,4 +70,4 @@ if (userStore.token) {
   userStore.fetchCurrentUser().catch(error => {
     console.error('无法获取用户信息:', error)
   })
-} 
+}

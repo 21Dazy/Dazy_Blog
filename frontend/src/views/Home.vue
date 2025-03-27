@@ -6,6 +6,26 @@
         <h1 class="banner-title">探索博客世界</h1>
         <p class="banner-description">分享知识，连接思想，发现精彩</p>
         
+        <!-- 添加导航栏 -->
+        <div class="main-navigation">
+          <router-link to="/" exact class="nav-item">
+            <el-icon><HomeFilled /></el-icon>
+            <span>首页</span>
+          </router-link>
+          <router-link to="/archives" class="nav-item">
+            <el-icon><Calendar /></el-icon>
+            <span>时间归档</span>
+          </router-link>
+          <router-link to="/tags" class="nav-item">
+            <el-icon><Collection /></el-icon>
+            <span>标签云</span>
+          </router-link>
+          <router-link to="/about" class="nav-item">
+            <el-icon><InfoFilled /></el-icon>
+            <span>关于</span>
+          </router-link>
+        </div>
+        
         <!-- 搜索框 -->
         <div class="search-box">
           <el-input
@@ -25,7 +45,7 @@
 
     <!-- 主要内容区域 -->
     <div class="main-content">
-      <el-row :gutter="20">
+    <el-row :gutter="20">
         <!-- 左侧内容区 -->
         <el-col :xs="24" :sm="24" :md="16" :lg="18">
           <!-- 筛选与排序 -->
@@ -59,6 +79,27 @@
                   </div>
                 </el-option>
               </el-select>
+              
+              <!-- 改进的升降序切换按钮 -->
+              <el-tooltip
+                :content="sortDirection === 'desc' ? '当前：降序排列' : '当前：升序排列'"
+                placement="top"
+              >
+                <el-button
+                  class="direction-button"
+                  @click="toggleSortDirection"
+                  round
+                  type="primary"
+                  text
+                >
+                  <div class="sort-direction-indicator">
+                    <transition name="flip">
+                      <el-icon v-if="sortDirection === 'desc'" key="desc"><ArrowDown /></el-icon>
+                      <el-icon v-else key="asc"><ArrowUp /></el-icon>
+                    </transition>
+                  </div>
+                </el-button>
+              </el-tooltip>
             </div>
             
             <div v-if="currentCategory || currentTag || searchKeyword" class="active-filters">
@@ -75,35 +116,38 @@
           </div>
 
           <!-- 博客列表 -->
-          <div class="blog-list-container">
+        <div class="blog-list-container">
             <h2>{{ getListTitle() }}</h2>
-            
-            <el-skeleton :rows="3" animated v-if="loading" />
-            
+          
+          <el-skeleton :rows="3" animated v-if="loading" />
+          
             <div v-else-if="blogs.length === 0" class="empty-blogs">
-              <el-empty description="暂无博客" />
-            </div>
-            
+            <el-empty description="暂无博客" />
+          </div>
+          
             <div v-else class="blog-grid">
               <div class="blog-grid-item" v-for="blog in blogs" :key="blog.id">
                 <blog-card :blog="blog" />
               </div>
               
-              <el-pagination
-                v-if="totalBlogs > 0"
-                layout="prev, pager, next"
-                :total="totalBlogs"
-                :page-size="pageSize"
-                :current-page="currentPage"
-                @current-change="handlePageChange"
-              />
+              <div class="pagination-container" v-if="totalItems > pageSize">
+            <el-pagination
+              layout="prev, pager, next"
+                  :total="totalItems"
+              :page-size="pageSize"
+              :current-page="currentPage"
+              @current-change="handlePageChange"
+                  background
+                  hide-on-single-page
+                ></el-pagination>
+              </div>
             </div>
-          </div>
-        </el-col>
-        
+        </div>
+      </el-col>
+      
         <!-- 右侧边栏 -->
         <el-col :xs="24" :sm="24" :md="8" :lg="6">
-          <div class="sidebar-widgets">
+        <div class="sidebar-widgets">
             <!-- 作者信息 -->
             <div class="widget author-info" v-if="currentUser">
               <div class="author-avatar">
@@ -113,7 +157,7 @@
               <p class="author-bio">{{ currentUser.bio || '这个人很懒，什么都没有留下' }}</p>
               <div class="author-stats">
                 <div class="stat">
-                  <div class="stat-number">{{ blogs.length }}</div>
+                  <div class="stat-number">{{ getUserBlogCount }}</div>
                   <div class="stat-label">文章</div>
                 </div>
                 <div class="stat">
@@ -124,22 +168,22 @@
             </div>
             
             <!-- 分类列表 -->
-            <div class="widget">
+          <div class="widget">
               <h3>博客分类</h3>
-              <el-skeleton :rows="3" animated v-if="categoriesLoading" />
-              <ul v-else-if="categories && categories.length > 0" class="category-list">
-                <li v-for="category in categories" :key="category.id">
-                  <router-link :to="'/category/' + category.id">
-                    {{ category.name }}
+            <el-skeleton :rows="3" animated v-if="categoriesLoading" />
+            <ul v-else-if="categories && categories.length > 0" class="category-list">
+              <li v-for="category in categories" :key="category.id">
+                <router-link :to="'/category/' + category.id">
+                  {{ category.name }}
                     <span class="category-count">{{}}</span>
-                  </router-link>
-                </li>
-              </ul>
-              <div v-else class="empty-categories">
-                <el-empty description="暂无分类" />
-              </div>
+                </router-link>
+              </li>
+            </ul>
+            <div v-else class="empty-categories">
+              <el-empty description="暂无分类" />
             </div>
-            
+          </div>
+          
             <!-- 标签云 -->
             <div class="widget">
               <h3>热门标签</h3>
@@ -162,24 +206,24 @@
             </div>
             
             <!-- 最新文章 -->
-            <div class="widget">
-              <h3>最新文章</h3>
-              <el-skeleton :rows="3" animated v-if="loading" />
-              <ul v-else-if="recentBlogs && recentBlogs.length > 0" class="recent-posts">
-                <li v-for="blog in recentBlogs" :key="blog.id">
-                  <router-link :to="'/blog/' + blog.id">
-                    {{ blog.title }}
-                  </router-link>
+          <div class="widget">
+            <h3>最新文章</h3>
+            <el-skeleton :rows="3" animated v-if="loading" />
+            <ul v-else-if="recentBlogs && recentBlogs.length > 0" class="recent-posts">
+              <li v-for="blog in recentBlogs" :key="blog.id">
+                <router-link :to="'/blog/' + blog.id">
+                  {{ blog.title }}
+                </router-link>
                   <span class="post-date">{{ formatDate(blog.createdAt) }}</span>
-                </li>
-              </ul>
-              <div v-else class="empty-recent">
-                <el-empty description="暂无最新文章" />
-              </div>
+              </li>
+            </ul>
+            <div v-else class="empty-recent">
+              <el-empty description="暂无最新文章" />
             </div>
           </div>
-        </el-col>
-      </el-row>
+        </div>
+      </el-col>
+    </el-row>
     </div>
   </div>
 </template>
@@ -193,12 +237,20 @@ import { useUserStore } from '../stores/user'
 import { useRoute, useRouter } from 'vue-router'
 import BlogCard from '../components/blog/BlogCard.vue'
 import { ElMessage } from 'element-plus'
-import { Calendar, View, Star } from '@element-plus/icons-vue'
+import { Calendar, View, Star, ArrowDown, ArrowUp, HomeFilled, Collection, InfoFilled } from '@element-plus/icons-vue'
 
 export default {
   name: 'Home',
   components: {
-    BlogCard
+    BlogCard,
+    Calendar,
+    View,
+    Star,
+    ArrowDown,
+    ArrowUp,
+    HomeFilled,
+    Collection,
+    InfoFilled
   },
   setup() {
     const blogStore = useBlogStore()
@@ -212,18 +264,26 @@ export default {
     const pageSize = ref(10)
     const searchKeyword = ref('')
     const sortBy = ref('createdAt')
+    const sortDirection = ref('desc')
     const currentCategory = ref(null)
     const currentTag = ref(null)
     const tagsLoading = computed(() => tagStore.loading)
     
     const blogs = computed(() => blogStore.blogs)
-    const totalBlogs = computed(() => blogStore.totalBlogs || 0)
     const loading = computed(() => blogStore.loading)
+    const totalItems = computed(() => blogStore.totalItems || 0)
+    const totalPages = computed(() => blogStore.totalPages || 1)
     const categories = computed(() => categoryStore.categories)
     const categoriesLoading = computed(() => categoryStore.loading)
     const recentBlogs = computed(() => blogStore.recentBlogs)
     const currentUser = computed(() => userStore.currentUser)
     const tags = computed(() => tagStore.tags)
+    
+    // 添加获取当前用户博客总数的方法
+    const getUserBlogCount = computed(() => {
+      // 如果用户存在且有userBlogCount，则返回该值，否则返回0
+      return userStore.userBlogCount || 0;
+    });
     
     // 监听URL参数变化
     watch(() => route.query, (newQuery) => {
@@ -250,6 +310,10 @@ export default {
         sortBy.value = newQuery.sort
         blogStore.setSorting(newQuery.sort)
       }
+      
+      if (newQuery.direction) {
+        sortDirection.value = newQuery.direction
+      }
     }, { immediate: true })
     
     
@@ -272,7 +336,8 @@ export default {
             categoryId: route.query.category,
             page: currentPage.value,
             size: pageSize.value,
-            sortBy: sortBy.value
+            sortBy: sortBy.value,
+            order: sortDirection.value
           })
         } else if (route.query.tag) {
           // 处理标签筛选
@@ -281,7 +346,8 @@ export default {
             tagId: route.query.tag,
             page: currentPage.value,
             size: pageSize.value,
-            sortBy: sortBy.value
+            sortBy: sortBy.value,
+            order: sortDirection.value
           })
         } else {
           // 没有筛选条件，获取全部博客
@@ -365,7 +431,8 @@ export default {
         await blogStore.fetchBlogs({
           page: currentPage.value - 1,
           size: pageSize.value,
-          sortBy: sortBy.value
+          sortBy: sortBy.value,
+          direction: sortDirection.value
         })
       } catch (error) {
         console.error('获取博客列表失败:', error)
@@ -491,7 +558,8 @@ export default {
     
     // 计算总阅读量
     const getTotalViews = () => {
-      return blogs.value.reduce((total, blog) => total + (blog.views || 0), 0)
+      // 使用userStore中存储的用户所有博客的总阅读量
+      return userStore.totalViews || 0;
     }
     
     // 获取标签样式，根据标签关联的博客数量设置不同的样式
@@ -567,9 +635,33 @@ export default {
       return `http://localhost:8080${url}`
     }
     
+    // 切换排序方向
+    const toggleSortDirection = async () => {
+      // 切换排序方向
+      sortDirection.value = sortDirection.value === 'desc' ? 'asc' : 'desc'
+      
+      // 排序变化时回到第一页
+      currentPage.value = 1
+      
+      console.log(`排序方向切换为: ${sortDirection.value}`)
+      
+      // 更新URL参数，保留当前路径和其他查询参数
+      const query = { ...route.query, page: 1, direction: sortDirection.value }
+      router.push({ path: route.path, query })
+      
+      // 加载排序后的数据
+      try {
+        await fetchBlogs()
+        ElMessage.success(`排序方向已切换为${sortDirection.value === 'desc' ? '降序' : '升序'}`)
+      } catch (error) {
+        console.error('排序博客失败:', error)
+        ElMessage.error('排序博客失败')
+      }
+    }
+    
     return {
       blogs,
-      totalBlogs,
+      totalItems,
       loading,
       categories,
       categoriesLoading,
@@ -578,11 +670,13 @@ export default {
       pageSize,
       searchKeyword,
       sortBy,
+      sortDirection,
       currentCategory,
       currentTag,
       tags,
       tagsLoading,
       currentUser,
+      getUserBlogCount,
       handleSearch,
       handleSortChange,
       handlePageChange,
@@ -593,7 +687,8 @@ export default {
       getTotalViews,
       getTagStyle,
       formatDate,
-      getImageUrl
+      getImageUrl,
+      toggleSortDirection
     }
   }
 }
@@ -627,8 +722,42 @@ export default {
 
 .banner-description {
   font-size: 1.2rem;
-  margin-bottom: 25px;
+  margin-bottom: 15px;
   opacity: 0.9;
+}
+
+/* 主导航 */
+.main-navigation {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 25px;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.nav-item {
+  color: rgba(255, 255, 255, 0.8);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  padding: 6px 16px;
+  border-radius: 20px;
+  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(5px);
+  font-weight: 500;
+}
+
+.nav-item:hover, .nav-item.router-link-exact-active, .nav-item.router-link-active {
+  background: rgba(255, 255, 255, 0.25);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.nav-item .el-icon {
+  margin-right: 6px;
+  font-size: 18px;
 }
 
 .search-box {
@@ -715,6 +844,47 @@ export default {
   text-overflow: ellipsis;
 }
 
+/* 排序方向按钮样式 */
+.direction-button {
+  margin-left: 6px;
+  position: relative;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #eaeaea;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.direction-button:hover {
+  background-color: #ecf5ff;
+  border-color: #409EFF;
+  color: #409EFF;
+}
+
+.sort-direction-indicator {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 排序方向切换的动画效果 */
+.flip-enter-active,
+.flip-leave-active {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.flip-enter-from,
+.flip-leave-to {
+  transform: rotateX(90deg);
+  opacity: 0;
+}
+
 /* 全局样式，修改下拉框样式需要加 :deep() */
 :deep(.el-select .el-input__wrapper) {
   padding: 0 10px;
@@ -786,6 +956,15 @@ export default {
 .blog-grid-item {
   display: flex;
   height: 100%;
+}
+
+.pagination-container {
+  margin-top: 30px;
+  text-align: center;
+  grid-column: 1 / -1; /* 确保占据整行 */
+  width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
 .empty-blogs {
@@ -1013,6 +1192,21 @@ export default {
     font-size: 2rem;
   }
   
+  /* 响应式导航栏 */
+  .main-navigation {
+    gap: 10px;
+  }
+  
+  .nav-item {
+    padding: 4px 12px;
+    font-size: 13px;
+  }
+  
+  .nav-item .el-icon {
+    margin-right: 4px;
+    font-size: 16px;
+  }
+  
   .filter-bar {
     flex-direction: column;
     align-items: flex-start;
@@ -1028,8 +1222,12 @@ export default {
     flex-grow: 1;
   }
   
+  .direction-button {
+    margin-left: auto;
+  }
+  
   .sidebar-widgets {
-    margin-top: 20px;
+  margin-top: 20px;
   }
   
   .tag-cloud {

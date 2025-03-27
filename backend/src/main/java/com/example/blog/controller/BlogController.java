@@ -195,13 +195,31 @@ public class BlogController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "desc") String direction) {
+            @RequestParam(defaultValue = "desc") String direction,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
         try {
             System.out.println("获取所有博客开始: page=" + page + ", size=" + size);
+            if (startDate != null) {
+                System.out.println("开始日期: " + startDate);
+            }
+            if (endDate != null) {
+                System.out.println("结束日期: " + endDate);
+            }
+            
             Sort.Direction sortDirection = direction.equalsIgnoreCase("asc") ? 
                     Sort.Direction.ASC : Sort.Direction.DESC;
             Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortBy));
-            Page<Blog> blogs = blogService.findAll(pageable);
+            
+            Page<Blog> blogs;
+            if (startDate != null && endDate != null) {
+                // 使用日期范围过滤
+                blogs = blogService.findByDateRange(startDate, endDate, pageable);
+            } else {
+                // 获取所有博客
+                blogs = blogService.findAll(pageable);
+            }
+            
             System.out.println("查询到博客数量: " + blogs.getContent().size());
             
             // 转换为BlogResponse对象
@@ -309,7 +327,9 @@ public class BlogController {
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String direction) {
         try {
-            Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+            Sort.Direction sortDirection = direction.equalsIgnoreCase("asc") ? 
+                    Sort.Direction.ASC : Sort.Direction.DESC;
+            Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortBy));
             Page<Blog> blogs = blogService.findByTagId(tagId, pageable);
             
             // 转换为BlogResponse对象
@@ -337,7 +357,9 @@ public class BlogController {
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String direction) {
         try {
-            Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+            Sort.Direction sortDirection = direction.equalsIgnoreCase("asc") ? 
+                    Sort.Direction.ASC : Sort.Direction.DESC;
+            Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortBy));
             Page<Blog> blogs = blogService.searchByKeyword(query, pageable);
             
             // 转换为BlogResponse对象
@@ -502,6 +524,39 @@ public class BlogController {
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/auth/author/{authorId}/stats")
+    public ResponseEntity<?> getUserBlogStats(@PathVariable Long authorId) {
+        try {
+            // 查找该作者的所有博客
+            User author = userService.findById(authorId)
+                .orElseThrow(() -> new RuntimeException("作者不存在"));
+            
+            // 获取作者的所有博客
+            List<Blog> blogs = blogService.findByAuthorWithCategory(author);
+            
+            // 计算总阅读量
+            int totalViews = blogs.stream()
+                .mapToInt(Blog::getViews)
+                .sum();
+                
+            // 计算总点赞数
+            int totalLikes = blogs.stream()
+                .mapToInt(Blog::getLikes)
+                .sum();
+                
+            // 构建统计数据响应
+            Map<String, Object> stats = new HashMap<>();
+            stats.put("totalBlogs", blogs.size());
+            stats.put("totalViews", totalViews);
+            stats.put("totalLikes", totalLikes);
+            
+            return ResponseEntity.ok(stats);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("获取用户博客统计失败: " + e.getMessage());
         }
     }
 } 

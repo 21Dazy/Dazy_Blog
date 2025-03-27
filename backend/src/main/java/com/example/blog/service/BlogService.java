@@ -3,9 +3,11 @@ package com.example.blog.service;
 import com.example.blog.dto.BlogRequest;
 import com.example.blog.dto.BlogResponse;
 import com.example.blog.model.Blog;
+import com.example.blog.model.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface BlogService {
@@ -20,8 +22,10 @@ public interface BlogService {
     Page<Blog> searchByKeyword(String keyword, Pageable pageable);
     Page<Blog> findPublicByAuthorId(Long authorId, Pageable pageable);
     Page<Blog> findPublicByCategoryId(Long categoryId, Pageable pageable);
+    Page<Blog> findByDateRange(String startDate, String endDate, Pageable pageable);
     void incrementViews(Long id);
     void likeBlog(Long id);
     void unlikeBlog(Long id);
     long getLikes(Long id);
+    List<Blog> findByAuthorWithCategory(User author);
 } 

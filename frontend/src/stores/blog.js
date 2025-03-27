@@ -13,6 +13,9 @@ export const useBlogStore = defineStore('blog', {
     currentCategoryId: null,
     currentTagId: null,
     currentPage: 1,
+    totalPages: 0,
+    totalItems: 0,
+    pageSize: 10
   }),
 
   getters: {
@@ -22,13 +25,61 @@ export const useBlogStore = defineStore('blog', {
   },
 
   actions: {
-    async fetchBlogs() {
+    async fetchBlogs(params = {}) {
       try {
         this.loading = true
-        const response = await axios.get('/api/blogs')
-        this.blogs = response.data.blogs || response.data
+        console.log('获取博客列表，参数:', params)
+        
+        // 设置默认参数
+        const page = params.page !== undefined ? params.page : 0
+        const size = params.size !== undefined ? params.size : this.pageSize
+        const sortBy = params.sortBy || 'createdAt'
+        const direction = params.direction || 'desc'
+        
+        const response = await axios.get('/api/blogs', {
+          params: {
+            page: page,
+            size: size,
+            sortBy: sortBy,
+            direction: direction
+          }
+        })
+        
+        console.log('获取博客列表响应:', response.data)
+        
+        // 兼容不同的响应结构
+        if (response.data.content) {
+          // Spring Data分页格式
+          this.blogs = response.data.content
+          this.totalItems = response.data.totalElements
+          this.totalPages = response.data.totalPages
+          this.currentPage = response.data.number + 1 // 后端从0开始计数
+        } else if (response.data.blogs) {
+          // 自定义格式
+          this.blogs = response.data.blogs
+          this.totalItems = response.data.totalItems || 0
+          this.totalPages = response.data.totalPages || Math.ceil(this.totalItems / size)
+          this.currentPage = response.data.currentPage || (page + 1)
+        } else {
+          // 直接是博客数组的情况
+          this.blogs = response.data
+          this.totalItems = response.data.length
+          this.totalPages = 1
+          this.currentPage = 1
+        }
+        
+        // 重置当前滚动位置
+        window.scrollTo(0, 0)
+        
+        return {
+          blogs: this.blogs,
+          totalItems: this.totalItems,
+          totalPages: this.totalPages,
+          currentPage: this.currentPage
+        }
       } catch (error) {
         this.error = error.response?.data?.message || '获取博客列表失败'
+        console.error('获取博客列表失败:', error)
         throw error
       } finally {
         this.loading = false
@@ -156,25 +207,82 @@ export const useBlogStore = defineStore('blog', {
     async fetchUserBlogs(params) {
       try {
         this.loading = true
+        console.log('获取用户博客，参数:', params)
+        
+        // 设置默认参数
+        const page = params.page !== undefined ? params.page - 1 : 0 // 后端分页从0开始
+        const size = params.size || this.pageSize
+        const sortBy = params.sortBy || 'createdAt'
+        const order = params.order || 'desc'
+        
         const response = await axios.get(`/api/auth/author/${params.userId}`, {
           params: {
-            page: params.page - 1, // 因为后端是0索引开始
-            size: params.size
+            page: page,
+            size: size,
+            sortBy: sortBy,
+            direction: order
           }
         })
         
-        // 确保blogs数组中的每个博客都有有效的category和createdAt
-        let blogs = response.data.blogs || response.data.content || [];
-        blogs = blogs.map(blog => ({
-          ...blog,
-          category: blog.category || { id: 0, name: '未分类' },
-          createdAt: blog.createdAt || new Date().toISOString()
-        }));
+        console.log('用户博客获取结果:', response.data)
         
-        this.blogs = blogs;
-        return response.data;
+        // 兼容不同的响应结构
+        if (response.data.content) {
+          // Spring Data分页格式
+          this.blogs = response.data.content
+          this.totalItems = response.data.totalElements
+          this.totalPages = response.data.totalPages
+          this.currentPage = response.data.number + 1
+          console.log('分页信息(Spring格式):', {
+            totalItems: this.totalItems,
+            totalPages: this.totalPages,
+            currentPage: this.currentPage
+          })
+        } else if (response.data.blogs) {
+          // 自定义格式
+          this.blogs = response.data.blogs
+          this.totalItems = response.data.totalItems || 0
+          this.totalPages = response.data.totalPages || Math.ceil(this.totalItems / size)
+          this.currentPage = response.data.currentPage || page + 1
+          console.log('分页信息(自定义格式):', {
+            totalItems: this.totalItems,
+            totalPages: this.totalPages,
+            currentPage: this.currentPage
+          })
+        } else {
+          // 直接是博客数组的情况
+          this.blogs = response.data
+          this.totalItems = response.data.length
+          this.totalPages = 1
+          this.currentPage = 1
+          console.log('分页信息(数组格式):', {
+            totalItems: this.totalItems,
+            totalPages: this.totalPages,
+            currentPage: this.currentPage
+          })
+        }
+        
+        // 确保每个博客都有有效的category和createdAt
+        if (this.blogs) {
+          this.blogs = this.blogs.map(blog => ({
+            ...blog,
+            category: blog.category || { id: 0, name: '未分类' },
+            createdAt: blog.createdAt || new Date().toISOString()
+          }));
+        }
+        
+        // 重置当前滚动位置
+        window.scrollTo(0, 0)
+        
+        return {
+          blogs: this.blogs,
+          totalItems: this.totalItems,
+          totalPages: this.totalPages,
+          currentPage: this.currentPage
+        }
       } catch (error) {
         this.error = error.response?.data?.message || '获取用户博客失败'
+        console.error('获取用户博客失败:', error)
         throw error
       } finally {
         this.loading = false
@@ -201,25 +309,65 @@ export const useBlogStore = defineStore('blog', {
     async fetchBlogsByCategory(params) {
       try {
         this.loading = true
+        console.log('获取分类博客，参数:', params)
+        
+        // 设置默认参数
+        const page = params.page !== undefined ? params.page - 1 : 0 // 后端分页从0开始
+        const size = params.size || this.pageSize
+        const sortBy = params.sortBy || 'createdAt'
+        const order = params.order || 'desc'
+        
         const response = await axios.get(`/api/blogs/category/${params.categoryId}`, {
           params: {
-            page: params.page - 1, // 因为后端是0索引开始
-            size: params.size,
-            sortBy: params.sortBy,
-            order: params.order
+            page: page,
+            size: size,
+            sortBy: sortBy,
+            direction: order
           }
         })
-        this.blogs=response.data.blogs;
-        if(!response.data.blogs){
-          this.currentBlog=null;
-        }
-        else{
-          this.currentBlog=response.data.blogs[0];
+        
+        console.log('分类博客获取结果:', response.data)
+        
+        // 兼容不同的响应结构
+        if (response.data.content) {
+          // Spring Data分页格式
+          this.blogs = response.data.content
+          this.totalItems = response.data.totalElements
+          this.totalPages = response.data.totalPages
+          this.currentPage = response.data.number + 1
+        } else if (response.data.blogs) {
+          // 自定义格式
+          this.blogs = response.data.blogs
+          this.totalItems = response.data.totalItems || 0
+          this.totalPages = response.data.totalPages || Math.ceil(this.totalItems / size)
+          this.currentPage = response.data.currentPage || page + 1
+        } else {
+          // 直接是博客数组的情况
+          this.blogs = response.data
+          this.totalItems = response.data.length
+          this.totalPages = 1
+          this.currentPage = 1
         }
         
-        return response.data;
+        // 如果blogs不存在或长度为0，设置当前博客为null
+        if (!this.blogs || this.blogs.length === 0) {
+          this.currentBlog = null
+        } else {
+          this.currentBlog = this.blogs[0]
+        }
+        
+        // 重置当前滚动位置
+        window.scrollTo(0, 0)
+        
+        return {
+          blogs: this.blogs,
+          totalItems: this.totalItems,
+          totalPages: this.totalPages,
+          currentPage: this.currentPage
+        }
       } catch (error) {
-        this.error = error.response?.data?.message || '获取评论失败'
+        this.error = error.response?.data?.message || '获取分类博客失败'
+        console.error('获取分类博客失败:', error)
         throw error
       } finally {
         this.loading = false
@@ -289,28 +437,62 @@ export const useBlogStore = defineStore('blog', {
       try {
         this.loading = true
         console.log('获取标签博客，参数:', params)
+        
+        // 设置默认参数
+        const page = params.page !== undefined ? params.page - 1 : 0 // 后端分页从0开始
+        const size = params.size || this.pageSize
+        const sortBy = params.sortBy || 'createdAt'
+        const order = params.order || 'desc'
+        
         // 修正API路径，确保与后端匹配
         const response = await axios.get(`/api/tag/${params.tagId}`, {
           params: {
-            page: params.page - 1, // 因为后端是0索引开始
-            size: params.size,
-            sortBy: params.sortBy,
-            order: params.order
+            page: page,
+            size: size,
+            sortBy: sortBy,
+            order: order
           }
         })
         
         console.log('标签博客获取结果:', response.data)
         
-        this.blogs = response.data.blogs;
-        
-        // 保存第一篇博客作为当前博客
-        if (!response.data.blogs || response.data.blogs.length === 0) {
-          this.currentBlog = null;
+        // 兼容不同的响应结构
+        if (response.data.content) {
+          // Spring Data分页格式
+          this.blogs = response.data.content
+          this.totalItems = response.data.totalElements
+          this.totalPages = response.data.totalPages
+          this.currentPage = response.data.number + 1
+        } else if (response.data.blogs) {
+          // 自定义格式
+          this.blogs = response.data.blogs
+          this.totalItems = response.data.totalItems || 0
+          this.totalPages = response.data.totalPages || Math.ceil(this.totalItems / size)
+          this.currentPage = response.data.currentPage || page + 1
         } else {
-          this.currentBlog = response.data.blogs[0];
+          // 直接是博客数组的情况
+          this.blogs = response.data
+          this.totalItems = response.data.length
+          this.totalPages = 1
+          this.currentPage = 1
         }
         
-        return response.data;
+        // 如果blogs不存在或长度为0，设置当前博客为null
+        if (!this.blogs || this.blogs.length === 0) {
+          this.currentBlog = null
+        } else {
+          this.currentBlog = this.blogs[0]
+        }
+        
+        // 重置当前滚动位置
+        window.scrollTo(0, 0)
+        
+        return {
+          blogs: this.blogs,
+          totalItems: this.totalItems,
+          totalPages: this.totalPages,
+          currentPage: this.currentPage
+        }
       } catch (error) {
         console.error('获取标签博客失败:', error)
         console.error('错误详情:', error.response?.data)
@@ -328,15 +510,15 @@ export const useBlogStore = defineStore('blog', {
         console.log('搜索博客，查询词:', query, '参数:', params)
         
         // 设置默认值
-        const page = params.page || 1
-        const size = params.size || 10
+        const page = params.page !== undefined ? params.page - 1 : 0 // 后端分页从0开始
+        const size = params.size || this.pageSize
         const sortBy = params.sortBy || 'createdAt'
         const order = params.order || 'desc'
         
         const response = await axios.get('/api/search', {
           params: {
             query: query,
-            page: page - 1, // 后端分页从0开始
+            page: page,
             size: size,
             sortBy: sortBy,
             direction: order
@@ -345,20 +527,35 @@ export const useBlogStore = defineStore('blog', {
         
         console.log('搜索结果:', response.data)
         
+        // 兼容不同的响应结构
         if (response.data.content) {
+          // Spring Data分页格式
           this.blogs = response.data.content
-          return {
-            blogs: response.data.content,
-            total: response.data.totalElements,
-            currentPage: response.data.number + 1
-          }
+          this.totalItems = response.data.totalElements
+          this.totalPages = response.data.totalPages
+          this.currentPage = response.data.number + 1
+        } else if (response.data.blogs) {
+          // 自定义格式
+          this.blogs = response.data.blogs
+          this.totalItems = response.data.totalItems || 0
+          this.totalPages = response.data.totalPages || Math.ceil(this.totalItems / size)
+          this.currentPage = response.data.currentPage || page + 1
         } else {
-          this.blogs = response.data.blogs || []
-          return {
-            blogs: this.blogs,
-            total: response.data.totalItems || 0,
-            currentPage: response.data.currentPage || 1
-          }
+          // 直接是博客数组的情况
+          this.blogs = response.data
+          this.totalItems = response.data.length
+          this.totalPages = 1
+          this.currentPage = 1
+        }
+        
+        // 重置当前滚动位置
+        window.scrollTo(0, 0)
+        
+        return {
+          blogs: this.blogs,
+          totalItems: this.totalItems,
+          totalPages: this.totalPages,
+          currentPage: this.currentPage
         }
       } catch (error) {
         console.error('搜索博客失败:', error)
@@ -428,8 +625,9 @@ export const useBlogStore = defineStore('blog', {
         this.fetchBlogsByCategory({
           categoryId: this.currentCategoryId,
           page: page,
-          size: 10,
-          sortBy: this.currentSortBy || 'createdAt'
+          size: this.pageSize,
+          sortBy: this.currentSortBy || 'createdAt',
+          order: 'desc'
         }).catch(error => {
           console.error('按分类获取指定页博客失败:', error)
         })
@@ -437,24 +635,27 @@ export const useBlogStore = defineStore('blog', {
         this.fetchBlogsByTag({
           tagId: this.currentTagId,
           page: page,
-          size: 10,
-          sortBy: this.currentSortBy || 'createdAt'
+          size: this.pageSize,
+          sortBy: this.currentSortBy || 'createdAt',
+          order: 'desc'
         }).catch(error => {
           console.error('按标签获取指定页博客失败:', error)
         })
       } else if (this.searchKeyword) {
         this.searchBlogs(this.searchKeyword, {
           page: page,
-          size: 10,
-          sortBy: this.currentSortBy || 'createdAt'
+          size: this.pageSize,
+          sortBy: this.currentSortBy || 'createdAt',
+          order: 'desc'
         }).catch(error => {
           console.error('搜索指定页博客失败:', error)
         })
       } else {
         this.fetchBlogs({
-          page: page - 1,
-          size: 10,
-          sortBy: this.currentSortBy || 'createdAt'
+          page: page - 1, // 后端分页从0开始
+          size: this.pageSize,
+          sortBy: this.currentSortBy || 'createdAt',
+          direction: 'desc'
         }).catch(error => {
           console.error('获取指定页博客失败:', error)
         })

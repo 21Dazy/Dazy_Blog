@@ -16,6 +16,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -247,12 +249,37 @@ public class BlogServiceImpl implements BlogService {
     @Override
     @Transactional
     public void unlikeBlog(Long id) {
-        System.out.println("取消点赞博客ID: " + id);
-        Blog blog = blogRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("博客不存在"));
-        blog.setLikes(blog.getLikes() - 1);
-        blogRepository.save(blog);
+        blogRepository.findById(id).ifPresent(blog -> {
+            if (blog.getLikes() > 0) {
+                blog.setLikes(blog.getLikes() - 1);
+                blogRepository.save(blog);
+            }
+        });
     }
     
+    @Override
+    public List<Blog> findByAuthorWithCategory(User author) {
+        return blogRepository.findByAuthorWithCategory(author);
+    }
 
+    @Override
+    public Page<Blog> findByDateRange(String startDate, String endDate, Pageable pageable) {
+        try {
+            // 解析日期字符串为LocalDateTime
+            LocalDate start = LocalDate.parse(startDate);
+            LocalDate end = LocalDate.parse(endDate);
+            
+            // 设置开始和结束时间（一天的开始和结束）
+            LocalDateTime startDateTime = start.atStartOfDay();
+            LocalDateTime endDateTime = end.atTime(23, 59, 59);
+            
+            // 使用自定义查询方法查找日期范围内的博客
+            return blogRepository.findByCreatedAtBetween(startDateTime, endDateTime, pageable);
+        } catch (Exception e) {
+            System.err.println("日期范围查询失败: " + e.getMessage());
+            e.printStackTrace();
+            // 如果日期解析失败，返回所有博客
+            return blogRepository.findAll(pageable);
+        }
+    }
 } 

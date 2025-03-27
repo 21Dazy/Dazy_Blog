@@ -7,13 +7,16 @@ export const useUserStore = defineStore('user', {
     token: localStorage.getItem('token') || null,
     loading: false,
     error: null,
-    remember: localStorage.getItem('remember') === 'true' || false
+    remember: localStorage.getItem('remember') === 'true' || false,
+    userBlogCount: 0, // 存储用户博客总数
+    userTotalViews: 0 // 存储用户博客总阅读量
   }),
 
   getters: {
     isAuthenticated: (state) => !!state.token,
     currentUser: (state) => state.user,
-    isLoggedIn: (state) => state.user !== null
+    totalBlogs: (state) => state.userBlogCount,
+    totalViews: (state) => state.userTotalViews
   },
 
   actions: {
@@ -95,6 +98,13 @@ export const useUserStore = defineStore('user', {
         })
         console.log('获取用户信息成功:', response.data);
         this.user = response.data
+        
+        // 获取用户博客总数和总阅读量
+        await Promise.all([
+          this.fetchUserBlogCount(),
+          this.fetchUserTotalViews()
+        ]);
+        
         return this.user
       } catch (error) {
         console.error('获取用户信息失败:', error);
@@ -192,6 +202,96 @@ export const useUserStore = defineStore('user', {
         throw error;
       } finally {
         this.loading = false;
+      }
+    },
+
+    async fetchUserBlogCount() {
+      if (!this.user) return 0;
+      
+      try {
+        // 使用现有API获取用户博客，但只关注总数
+        const response = await axios.get(`/api/auth/author/${this.user.id}`, {
+          params: {
+            page: 0,
+            size: 1,  // 只需要知道总数，所以页大小设为1
+            countOnly: true  // 这个参数可能在后端不存在，取决于API设计
+          },
+          headers: {
+            Authorization: `Bearer ${this.token}`
+          }
+        });
+        
+        if (response.data.totalElements || response.data.totalItems) {
+          this.userBlogCount = response.data.totalElements || response.data.totalItems;
+        } else if (Array.isArray(response.data)) {
+          this.userBlogCount = response.data.length;
+        } else if (response.data.content) {
+          this.userBlogCount = response.data.totalElements;
+        }
+        
+        console.log('获取到用户博客总数:', this.userBlogCount);
+        return this.userBlogCount;
+      } catch (error) {
+        console.error('获取用户博客总数失败:', error);
+        return 0;
+      }
+    },
+
+    // 添加获取用户博客总阅读量的方法
+    async fetchUserTotalViews() {
+      if (!this.user) return 0;
+      
+      try {
+        // 使用后端API获取用户博客统计信息
+        const response = await axios.get(`/api/auth/author/${this.user.id}/stats`, {
+          headers: {
+            Authorization: `Bearer ${this.token}`
+          }
+        });
+        
+        // 如果后端返回了统计数据，直接使用
+        if (response.data && response.data.totalViews !== undefined) {
+          this.userTotalViews = response.data.totalViews;
+          console.log('从后端获取到用户博客总阅读量:', this.userTotalViews);
+          return this.userTotalViews;
+        }
+        
+        // 如果后端API调用失败或未返回预期数据，使用前端计算（注释掉的备用实现）
+        /*
+        // 直接获取用户所有博客并计算总阅读量
+        // 为了效率，设置尽可能大的size值，以便一次获取所有博客
+        const blogResponse = await axios.get(`/api/auth/author/${this.user.id}`, {
+          params: {
+            page: 0,
+            size: 1000,  // 尝试获取尽可能多的博客
+          },
+          headers: {
+            Authorization: `Bearer ${this.token}`
+          }
+        });
+        
+        let totalViews = 0;
+        
+        // 计算总阅读量
+        if (blogResponse.data.content) {
+          // Spring Data 分页格式
+          totalViews = blogResponse.data.content.reduce((sum, blog) => sum + (blog.views || 0), 0);
+        } else if (Array.isArray(blogResponse.data)) {
+          // 数组格式
+          totalViews = blogResponse.data.reduce((sum, blog) => sum + (blog.views || 0), 0);
+        } else if (blogResponse.data.blogs) {
+          // 自定义格式
+          totalViews = blogResponse.data.blogs.reduce((sum, blog) => sum + (blog.views || 0), 0);
+        }
+        
+        this.userTotalViews = totalViews;
+        console.log('计算得到用户博客总阅读量:', this.userTotalViews);
+        */
+        
+        return this.userTotalViews;
+      } catch (error) {
+        console.error('获取用户博客阅读量失败:', error);
+        return 0;
       }
     }
   }
