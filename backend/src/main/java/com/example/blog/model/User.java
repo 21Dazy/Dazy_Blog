@@ -43,6 +43,9 @@ public class User {
 
     private String token;
 
+    @Column(nullable = false)
+    private String role = "normal"; // 添加默认值，如"user"、"normal"等
+
     @OneToMany(mappedBy = "author", cascade = CascadeType.ALL, orphanRemoval = true)
     @com.fasterxml.jackson.annotation.JsonIgnore
     private Set<Blog> blogs = new HashSet<>();

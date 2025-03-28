@@ -63,13 +63,17 @@ export const useUserStore = defineStore('user', {
     async register(userData) {
       try {
         this.loading = true
+        this.error = null
         const response = await axios.post('/api/auth/register', userData)
+        
+        // 设置登录状态
         this.token = response.data.token
         this.user = response.data.user
         
-        if (this.token) {
-          localStorage.setItem('token', this.token)
-        }
+        // 存储token到localStorage或sessionStorage
+        localStorage.setItem('token', this.token)
+        
+        return response.data
       } catch (error) {
         this.error = error.response?.data?.message || '注册失败'
         throw error

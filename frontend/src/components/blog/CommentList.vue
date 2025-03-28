@@ -101,7 +101,7 @@ export default {
     const comments = ref([])
     const total = ref(0)
     const currentPage = ref(1)
-    const pageSize = ref(20)
+    const pageSize = ref(10)
     const commentContent = ref('')
     const submitting = ref(false)
     
@@ -129,7 +129,8 @@ export default {
         console.log('开始获取评论，博客ID:', props.blogId)
         const result = await commentStore.fetchComments(props.blogId, {
           page: currentPage.value,
-          size: pageSize.value
+          size: pageSize.value,
+          rootOnly: true // 只获取根评论
         })
         
         comments.value = result.comments
@@ -137,16 +138,19 @@ export default {
         
         // 添加调试信息，详细查看评论数据结构
         console.log('评论加载成功，总数:', total.value)
-        console.log('评论数据结构:', JSON.stringify(comments.value, null, 2))
         console.log('根评论数量:', rootComments.value.length)
         
-        // 检查评论的父子关系
-        if (comments.value.length > 0) {
-          console.log('第一条评论示例:', comments.value[0])
-          if (comments.value[0].parent) {
-            console.log('父评论ID结构:', comments.value[0].parent)
+        // 加载每个根评论的子评论
+        const rootIds = rootComments.value.map(comment => comment.id)
+        await Promise.all(rootIds.map(async (rootId) => {
+          try {
+            // 获取每个根评论的所有子评论（不分页，后端会处理）
+            const childResult = await commentStore.fetchChildComments(rootId)
+            // 不需要在这里处理，子评论数据会在getChildComments方法中使用
+          } catch (error) {
+            console.error(`获取评论ID ${rootId} 的子评论失败:`, error)
           }
-        }
+        }))
       } catch (error) {
         console.error('获取评论失败:', error)
         ElMessage.error('获取评论失败，请稍后再试')
@@ -232,13 +236,30 @@ export default {
 <style scoped>
 .comment-section {
   margin-top: 30px;
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .section-title {
   font-size: 1.5rem;
   margin-bottom: 20px;
-  padding-bottom: 10px;
+  padding-bottom: 15px;
   border-bottom: 1px solid #ebeef5;
+  display: flex;
+  align-items: center;
+  color: #222;
+}
+
+.section-title::before {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 18px;
+  background-color: #00a1d6; /* B站蓝色 */
+  margin-right: 8px;
+  border-radius: 2px;
 }
 
 .comment-form {
@@ -255,17 +276,61 @@ export default {
   height: 40px;
   border-radius: 50%;
   object-fit: cover;
-  border: 1px solid #eee;
+  border: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.user-avatar img:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
 }
 
 .comment-input {
   flex-grow: 1;
 }
 
+.comment-input .el-textarea__inner {
+  background-color: #f4f5f7;
+  border: 1px solid #e5e9ef;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #222;
+  transition: all 0.2s ease;
+}
+
+.comment-input .el-textarea__inner:focus {
+  background-color: #fff;
+  border-color: #00a1d6;
+  box-shadow: 0 0 2px rgba(0, 161, 214, 0.2);
+}
+
+.comment-input .el-textarea__inner:hover {
+  border-color: #ccd0d7;
+}
+
+.comment-input .el-input__count {
+  background-color: transparent;
+  color: #99a2aa;
+  font-size: 12px;
+}
+
 .comment-btns {
   display: flex;
   justify-content: flex-end;
   margin-top: 10px;
+}
+
+.comment-btns .el-button {
+  background-color: #00a1d6; /* B站蓝色 */
+  border-color: #00a1d6;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.comment-btns .el-button:hover {
+  background-color: #00b5e5;
+  border-color: #00b5e5;
 }
 
 .login-prompt {
@@ -304,6 +369,44 @@ export default {
 .el-pagination {
   text-align: center;
   margin-top: 30px;
+}
+
+/* B站风格的分页器 */
+.el-pagination .el-pager li {
+  background-color: #fff;
+  color: #505050;
+  border: 1px solid #e5e9ef;
+  border-radius: 4px;
+  margin: 0 4px;
+  transition: all 0.2s ease;
+}
+
+.el-pagination .el-pager li.active {
+  background-color: #00a1d6;
+  color: #fff;
+  border-color: #00a1d6;
+  font-weight: normal;
+}
+
+.el-pagination .el-pager li:hover:not(.active) {
+  border-color: #00a1d6;
+  color: #00a1d6;
+}
+
+.el-pagination .btn-prev,
+.el-pagination .btn-next {
+  background-color: #fff;
+  color: #505050;
+  border: 1px solid #e5e9ef;
+  border-radius: 4px;
+  padding: 0 10px;
+  transition: all 0.2s ease;
+}
+
+.el-pagination .btn-prev:hover,
+.el-pagination .btn-next:hover {
+  border-color: #00a1d6;
+  color: #00a1d6;
 }
 
 @media (max-width: 768px) {

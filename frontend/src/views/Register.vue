@@ -141,8 +141,8 @@ export default {
           password: formData.value.password
         })
         
-        ElMessage.success('注册成功，请登录')
-        router.push('/login')
+        ElMessage.success('注册成功，欢迎加入我们！')
+        router.push('/')
       } catch (error) {
         console.error('注册失败:', error)
         ElMessage.error(error.response?.data?.message || '注册失败，请稍后再试')

@@ -363,6 +363,36 @@ export const useCommentStore = defineStore('comment', {
     // 清除错误
     clearError() {
       this.error = null
+    },
+    
+    // 获取指定父评论的子评论
+    async fetchChildComments(parentId) {
+      try {
+        this.loading = true
+        this.error = null
+        console.log('获取父评论的子评论，父评论ID:', parentId)
+        
+        const response = await axios.get(`/api/comments/parent/${parentId}`)
+        
+        const childComments = response.data.content || response.data || []
+        
+        // 将获取的子评论添加到全局评论列表中
+        // 先过滤掉已存在的子评论（基于ID）
+        const existingIds = this.comments.map(c => c.id)
+        const newChildComments = childComments.filter(c => !existingIds.includes(c.id))
+        
+        if (newChildComments.length > 0) {
+          this.comments = [...this.comments, ...newChildComments]
+        }
+        
+        return childComments
+      } catch (error) {
+        console.error('获取子评论失败:', error)
+        this.error = error.response?.data?.message || '获取子评论失败'
+        return []
+      } finally {
+        this.loading = false
+      }
     }
   }
 })

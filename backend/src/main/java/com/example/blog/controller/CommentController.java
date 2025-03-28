@@ -1,10 +1,14 @@
 package com.example.blog.controller;
 
+import com.example.blog.model.Blog;
 import com.example.blog.model.Comment;
 import com.example.blog.model.User;
+import com.example.blog.repository.BlogRepository;
 import com.example.blog.service.CommentService;
 import com.example.blog.service.UserService;
+import io.jsonwebtoken.Jwts;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -12,24 +16,26 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.beans.factory.annotation.Value;
 
 import java.util.HashMap;
 import java.util.Map;
-
+import java.util.Optional;
 
 @RestController
 public class CommentController {
 
     private final CommentService commentService;
     private final UserService userService;
+    private final BlogRepository blogRepository;
     
     @Value("${jwt.secret}")
     private String jwtSecret;
 
-    public CommentController(CommentService commentService, UserService userService) {
+    @Autowired
+    public CommentController(CommentService commentService, UserService userService, BlogRepository blogRepository) {
         this.commentService = commentService;
         this.userService = userService;
+        this.blogRepository = blogRepository;
     }
     
     // 从token中提取用户ID
@@ -130,34 +136,30 @@ public class CommentController {
     public ResponseEntity<?> getCommentsByBlogId(
             @PathVariable Long blogId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false, defaultValue = "false") boolean rootOnly) {
         try {
             Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-            Page<Comment> comments = commentService.findByBlogId(blogId, pageable);
             
-            // 确保响应中包含完整数据
-            for (Comment comment : comments.getContent()) {
-                if (comment.getUser() != null) {
-                    System.out.println("评论用户信息: ID=" + comment.getUser().getId() + 
-                                      ", 用户名=" + comment.getUser().getUsername());
-                } else {
-                    System.err.println("警告: 评论ID=" + comment.getId() + " 没有关联用户信息");
-                }
+            Optional<Blog> blogOpt = blogRepository.findById(blogId);
+            if (!blogOpt.isPresent()) {
+                return ResponseEntity.notFound().build();
             }
             
-            Map<String, Object> response = new HashMap<>();
-            response.put("content", comments.getContent()); // 使用content作为评论列表的键
-            response.put("currentPage", comments.getNumber());
-            response.put("totalItems", comments.getTotalElements());
-            response.put("totalPages", comments.getTotalPages());
+            Page<Comment> comments;
             
-            System.out.println("返回评论数: " + comments.getContent().size());
+            if (rootOnly) {
+                // 只返回根评论（没有父评论的评论）
+                comments = commentService.findRootCommentsByBlogId(blogId, pageable);
+            } else {
+                // 返回所有评论
+                comments = commentService.findByBlogId(blogId, pageable);
+            }
             
-            return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
-            System.err.println("获取评论时发生错误: " + e.getMessage());
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+            return ResponseEntity.ok(comments);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("获取评论失败: " + e.getMessage());
         }
     }
     
@@ -180,6 +182,25 @@ public class CommentController {
             return ResponseEntity.ok().build();
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+
+    /**
+     * 获取指定父评论的所有子评论
+     */
+    @GetMapping("/comments/parent/{parentId}")
+    public ResponseEntity<?> getCommentsByParentId(
+            @PathVariable Long parentId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        try {
+            Page<Comment> comments = commentService.findByParentId(parentId, 
+                PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "createdAt")));
+            
+            return ResponseEntity.ok(comments);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("获取子评论失败: " + e.getMessage());
         }
     }
 } 

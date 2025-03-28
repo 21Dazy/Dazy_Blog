@@ -10,9 +10,12 @@ import com.example.blog.service.CommentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -200,5 +203,48 @@ public class CommentServiceImpl implements CommentService {
         }
         
         return savedReply;
+    }
+
+    @Override
+    public Page<Comment> findByParentId(Long parentId, Pageable pageable) {
+        // 首先查找父评论，确保它存在
+        Optional<Comment> parentComment = commentRepository.findById(parentId);
+        if (!parentComment.isPresent()) {
+            throw new RuntimeException("父评论不存在");
+        }
+        
+        // 使用Repository的findByParentId方法，但需要转换为Page对象
+        List<Comment> childComments = commentRepository.findByParentId(parentId);
+        
+        // 手动进行分页处理
+        int start = (int) pageable.getOffset();
+        int end = Math.min((start + pageable.getPageSize()), childComments.size());
+        
+        // 确保索引有效
+        if (start > childComments.size()) {
+            start = 0;
+            end = 0;
+        }
+        
+        List<Comment> pageContent = (start < end) 
+            ? childComments.subList(start, end) 
+            : Collections.emptyList();
+        
+        return new PageImpl<>(pageContent, pageable, childComments.size());
+    }
+
+    @Override
+    public Page<Comment> findRootCommentsByBlogId(Long blogId, Pageable pageable) {
+        // 查找博客，确保它存在
+        Optional<Blog> blog = blogRepository.findById(blogId);
+        if (!blog.isPresent()) {
+            throw new RuntimeException("博客不存在，ID: " + blogId);
+        }
+        
+        // 这里需要创建一个Repository方法来查找没有父评论的评论
+        // 我们可以先使用原生的JPQL查询实现
+        Page<Comment> rootComments = commentRepository.findByBlogAndParentIsNull(blog.get(), pageable);
+        
+        return rootComments;
     }
 } 

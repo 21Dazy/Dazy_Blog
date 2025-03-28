@@ -21,22 +21,22 @@
           <button class="action-btn like-btn" 
             :class="{ 'liked': comment.isLiked }"
             @click="handleLike">
-            <i class="el-icon-star-on"></i>
+            <el-icon><StarFilled /></el-icon>
             <span>{{ comment.likes || 0 }}</span>
           </button>
           
           <button class="action-btn reply-btn" @click="toggleReply">
-            <i class="el-icon-chat-dot-round"></i>
+            <el-icon><ChatDotRound /></el-icon>
             <span>回复</span>
           </button>
           
           <button v-if="canEdit" class="action-btn edit-btn" @click="handleEdit">
-            <i class="el-icon-edit"></i>
+            <el-icon><Edit /></el-icon>
             <span>编辑</span>
           </button>
           
           <button v-if="canDelete" class="action-btn delete-btn" @click="handleDelete">
-            <i class="el-icon-delete"></i>
+            <el-icon><Delete /></el-icon>
             <span>删除</span>
           </button>
         </div>
@@ -81,8 +81,9 @@
         
         <!-- 子评论列表 -->
         <div v-if="childComments && childComments.length > 0" class="child-comments">
+          <!-- 显示已展开的子评论 -->
           <comment-item
-            v-for="childComment in childComments"
+            v-for="childComment in displayedChildComments"
             :key="childComment.id"
             :comment="childComment"
             :parent-author="comment.user ? comment.user.username : '匿名用户'"
@@ -90,6 +91,34 @@
             :blog-id="blogId"
             @comment-updated="$emit('comment-updated')"
           ></comment-item>
+          
+          <!-- 子评论分页和展开/折叠控制 - B站风格 -->
+          <div class="child-comments-control" v-if="childComments.length > childPageSize">
+            <div v-if="isChildExpanded" class="child-pagination">
+              <el-pagination
+                layout="prev, pager, next"
+                :total="childComments.length"
+                :page-size="childPageSize"
+                :current-page="childCurrentPage"
+                @current-change="handleChildPageChange"
+                small
+                hide-on-single-page
+              ></el-pagination>
+            </div>
+            
+            <div class="bilibili-toggle" @click="toggleChildComments">
+              <el-button type="text" size="small" class="toggle-button">
+                <template v-if="isChildExpanded">
+                  <el-icon class="toggle-icon"><ArrowUp /></el-icon>
+                  <span>收起回复</span>
+                </template>
+                <template v-else>
+                  <el-icon class="toggle-icon"><ArrowDown /></el-icon>
+                  <span>查看全部{{ childComments.length }}条回复</span>
+                </template>
+              </el-button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -100,9 +129,22 @@
   import { useUserStore } from '@/stores/user'
   import { useCommentStore } from '@/stores/comment'
   import { ElMessage, ElMessageBox } from 'element-plus'
+  import { ArrowUp, ArrowDown, Edit, Delete, StarFilled, ChatDotRound } from '@element-plus/icons-vue'
+  
+  // 使用前向引用解决递归组件问题
+  const CommentItem = () => import('./CommentItem.vue')
   
   export default {
     name: 'CommentItem',
+    components: {
+      CommentItem,
+      ArrowUp,
+      ArrowDown,
+      Edit,
+      Delete,
+      StarFilled,
+      ChatDotRound
+    },
     props: {
       comment: {
         type: Object,
@@ -135,6 +177,40 @@
       const showEditBox = ref(false)
       const replyContent = ref('')
       const editContent = ref('')
+      
+      // 子评论分页相关
+      const childPageSize = ref(3) // 默认显示3条子评论，超过时折叠
+      const childCurrentPage = ref(1)
+      const isChildExpanded = ref(false) // 子评论是否展开状态
+      
+      // 计算当前页要显示的子评论
+      const displayedChildComments = computed(() => {
+        if (!props.childComments || props.childComments.length === 0) {
+          return []
+        }
+        
+        // 如果没有展开，只显示前几条
+        if (!isChildExpanded.value) {
+          return props.childComments.slice(0, childPageSize.value)
+        }
+        
+        // 已展开，根据当前页显示
+        const startIndex = (childCurrentPage.value - 1) * childPageSize.value
+        return props.childComments.slice(startIndex, startIndex + childPageSize.value)
+      })
+      
+      // 处理子评论分页变化
+      const handleChildPageChange = (page) => {
+        childCurrentPage.value = page
+      }
+      
+      // 切换子评论展开/折叠状态
+      const toggleChildComments = () => {
+        isChildExpanded.value = !isChildExpanded.value
+        if (isChildExpanded.value) {
+          childCurrentPage.value = 1 // 展开时重置为第一页
+        }
+      }
       
       // 当前用户是否可以编辑/删除评论
       const canEdit = computed(() => {
@@ -342,7 +418,13 @@
         handleDelete,
         formatDate,
         getUserAvatar,
-        getUserName
+        getUserName,
+        childPageSize,
+        childCurrentPage,
+        isChildExpanded,
+        displayedChildComments,
+        handleChildPageChange,
+        toggleChildComments
       }
     }
   }
@@ -386,7 +468,9 @@
   }
   
   .reply-indicator {
-    margin-left: 6px;
+    position: relative;
+    margin-left: 8px;
+    padding-left: 8px;
     color: #909399;
     font-size: 12px;
   }
@@ -479,6 +563,143 @@
     
     .child-comments {
       margin-left: 10px;
+    }
+  }
+
+  /* 子评论展开/折叠控制样式 */
+  .child-comments-control {
+    margin-top: 10px;
+    margin-bottom: 10px;
+  }
+  
+  .toggle-child-comments {
+    font-size: 13px;
+    color: #00a1d6; /* B站蓝色 */
+    padding: 8px 0;
+    border-radius: 4px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  
+  .toggle-child-comments:hover {
+    color: #00b5e5;
+    background-color: rgba(0, 161, 214, 0.05);
+  }
+  
+  /* B站风格的折叠/展开按钮 */
+  .bilibili-toggle {
+    text-align: center;
+    margin: 8px 0;
+  }
+  
+  .toggle-button {
+    width: 100%;
+    color: #00a1d6 !important;
+    background-color: #f4f5f7 !important;
+    border-radius: 4px;
+    padding: 6px 0;
+    transition: all 0.2s ease-in-out;
+  }
+  
+  .toggle-button:hover {
+    color: #00b5e5 !important;
+    background-color: #e5f2f7 !important;
+  }
+  
+  .toggle-icon {
+    margin-right: 4px;
+    font-size: 14px;
+    vertical-align: middle;
+  }
+  
+  /* 模仿B站的评论风格 */
+  .bilibili-style {
+    --primary-color: #00a1d6;
+    --hover-color: #00b5e5;
+    --bg-color: #f4f5f7;
+    --light-text: #99a2aa;
+  }
+  
+  .comment-item {
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+  }
+  
+  .comment-item:hover {
+    background-color: #f9f9f9;
+  }
+  
+  .like-btn.liked {
+    color: #fb7299; /* B站的粉红色 */
+  }
+  
+  .comment-avatar img {
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .reply-indicator:before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    height: 12px;
+    width: 1px;
+    background-color: #ddd;
+    transform: translateY(-50%);
+  }
+  
+  .child-pagination {
+    margin: 5px 0;
+    display: flex;
+    justify-content: center;
+  }
+  
+  /* B站风格的评论分割线 */
+  .child-comments {
+    position: relative;
+    padding-left: 30px;
+    margin-top: 15px;
+  }
+  
+  .child-comments:before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: #f0f0f0;
+  }
+  
+  @media (max-width: 768px) {
+    .comment-item {
+      flex-direction: column;
+    }
+    
+    .comment-avatar {
+      margin-bottom: 10px;
+    }
+    
+    .comment-header {
+      flex-direction: column;
+    }
+    
+    .comment-date {
+      margin-top: 5px;
+    }
+    
+    .child-comments {
+      margin-left: 10px;
+      padding-left: 15px;
+    }
+    
+    .child-comments:before {
+      left: 5px;
     }
   }
   </style>
