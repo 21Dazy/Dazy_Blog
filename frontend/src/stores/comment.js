@@ -329,77 +329,71 @@ export const useCommentStore = defineStore('comment', {
     
     // 切换点赞状态
     async toggleLike(commentId, isLiked) {
-      return isLiked ? this.unlikeComment(commentId) : this.likeComment(commentId)
+      try {
+        // 根据当前点赞状态决定调用哪个方法
+        if (isLiked) {
+          await axios.post(`/api/comments/${commentId}/unlike`);
+          console.log(`取消点赞评论 ID: ${commentId}`);
+        } else {
+          await axios.post(`/api/comments/${commentId}/like`);
+          console.log(`点赞评论 ID: ${commentId}`);
+        }
+        return true;
+      } catch (error) {
+        console.error('切换点赞状态失败:', error);
+        throw error;
+      }
     },
     
     // 回复评论
-    async replyToComment(blogId, parentId, content) {
+    async replyToComment(blogId, parentId, content, replyToUsername = null) {
+      console.log(`回复评论 - 博客ID: ${blogId}, 父评论ID: ${parentId}, 回复用户: ${replyToUsername}`);
+      
+      const userStore = useUserStore(); // 使用函数获取store
+      
+      if (!userStore.isAuthenticated) {
+        throw new Error('请先登录后再回复评论');
+      }
+
+      const token = userStore.token;
+      if (!token) {
+        throw new Error('登录已过期，请重新登录');
+      }
+
+      // 获取根评论ID（如果是子评论的话）
       try {
-        this.submitting = true
-        // 确保parentId是数字类型 
-        const numericParentId = Number(parentId);
-        console.log('回复评论，参数:', { blogId, parentId: numericParentId, content })
+        let params = {
+          content,
+          parentId
+        };
         
-        // 获取当前用户信息和认证令牌
-        const userStore = useUserStore()
-        if (!userStore.isAuthenticated) {
-          console.error('用户未登录，无法回复评论')
-          throw new Error('请先登录后再回复')
+        // 如果提供了回复用户名，添加到请求参数
+        if (replyToUsername) {
+          params.replyToUsername = replyToUsername;
         }
         
-        console.log('当前用户信息:', userStore.currentUser)
-        
-        // 确保用户令牌有效
-        const token = userStore.token
-        if (!token) {
-          console.error('未找到有效的认证令牌')
-          throw new Error('认证失败，请重新登录')
-        }
-        
-        const response = await axios.post(`/api/auth/comments/blog/${blogId}`, null, {
-          params: {
-            content: content,
-            parentId: numericParentId
-          },
-          headers: {
-            'Authorization': `Bearer ${token}`
+        const res = await axios.post(
+          `/api/auth/comments/blog/${blogId}`, 
+          null,
+          { 
+            params,
+            headers: { Authorization: `Bearer ${token}` }
           }
-        })
+        );
         
-        console.log('评论回复响应:', response.data)
-        
-        let commentData = response.data
-        
-        // 确保返回的评论包含用户信息
-        if (commentData && !commentData.user) {
-          console.warn('返回的评论回复数据中没有用户信息，使用当前用户信息')
-          commentData.user = {
-            id: userStore.currentUser.id,
-            username: userStore.currentUser.username,
-            avatar: userStore.currentUser.avatar
-          }
+        // 确保parentId是一个数字类型
+        if (res.data.parent && res.data.parent.id) {
+          res.data.parentId = Number(res.data.parent.id);
         }
         
-        // 明确设置parentId属性，确保前端统一使用parentId，并且是数字类型
-        commentData.parentId = numericParentId
-        console.log(`已设置回复评论ID ${commentData.id} 的parentId=${numericParentId} (${typeof numericParentId})`)
+        // 添加到评论列表
+        this.comments.push(res.data);
+        this.totalComments++;
         
-        // 删除可能存在的parent_id和parent，避免数据不一致
-        if ('parent_id' in commentData) {
-          delete commentData.parent_id;
-        }
-        
-        // 更新评论列表
-        this.comments.push(commentData)
-        this.totalComments++
-        
-        return commentData
+        return res.data;
       } catch (error) {
-        console.error('回复评论失败:', error)
-        this.error = error.response?.data?.message || '回复评论失败'
-        throw error
-      } finally {
-        this.submitting = false
+        console.error('回复评论失败:', error);
+        throw error;
       }
     },
     

@@ -15,7 +15,10 @@
           <div class="comment-date">{{ formatDate(comment.createdAt) }}</div>
         </div>
         
-        <div class="comment-text">{{ comment.content }}</div>
+        <div class="comment-text">
+          <span v-if="comment.replyToUsername" class="reply-prefix">@{{ comment.replyToUsername }} </span>
+          {{ comment.content }}
+        </div>
         
         <div class="comment-actions">
           <button class="action-btn like-btn" 
@@ -25,7 +28,10 @@
             <span>{{ comment.likes || 0 }}</span>
           </button>
           
-          <button class="action-btn reply-btn" @click="toggleReply">
+          <button 
+            v-if="!isCurrentUser" 
+            class="action-btn reply-btn" 
+            @click="toggleReply">
             <el-icon><ChatDotRound /></el-icon>
             <span>回复</span>
           </button>
@@ -102,12 +108,12 @@
           <!-- 控制区域：分页 + 展开/折叠控制 -->
           <div class="child-comments-control">
             <!-- 展开状态下显示分页 -->
-            <div v-if="isChildExpanded && childComments.length > childPageSize" class="child-pagination">
+            <div v-if="isChildExpanded && childComments.length > 10" class="child-pagination">
               <el-pagination
                 :pager-count="5"
                 layout="prev, pager, next"
                 :total="childComments.length"
-                :page-size="childPageSize"
+                :page-size="10"
                 :current-page="childCurrentPage"
                 @current-change="handleChildPageChange"
                 small
@@ -228,7 +234,7 @@
       })
       
       // 子评论分页相关
-      const childPageSize = ref(5) // 默认显示5条子评论，超过时折叠
+      const childPageSize = ref(2) // 默认显示2条子评论，超过时折叠
       const childCurrentPage = ref(1)
       const isChildExpanded = ref(false) // 子评论是否展开状态
       
@@ -238,14 +244,15 @@
           return []
         }
         
-        // 如果没有展开，只显示前几条
+        // 如果没有展开，只显示前2条
         if (!isChildExpanded.value) {
           return props.childComments.slice(0, childPageSize.value);
         }
         
-        // 已展开，根据当前页显示
-        const startIndex = (childCurrentPage.value - 1) * childPageSize.value;
-        const endIndex = Math.min(startIndex + childPageSize.value, props.childComments.length);
+        // 已展开，根据当前页显示，最多10条每页
+        const expandedPageSize = 10; // 展开时每页显示10条
+        const startIndex = (childCurrentPage.value - 1) * expandedPageSize;
+        const endIndex = Math.min(startIndex + expandedPageSize, props.childComments.length);
         return props.childComments.slice(startIndex, endIndex);
       })
       
@@ -278,6 +285,14 @@
       
       const canDelete = computed(() => canEdit.value)
       
+      // 判断评论是否是当前用户发表的
+      const isCurrentUser = computed(() => {
+        return userStore.isAuthenticated && 
+               userStore.currentUser && 
+               props.comment.user && 
+               userStore.currentUser.id === props.comment.user.id
+      })
+      
       // 点赞评论
       const handleLike = async () => {
         if (!userStore.isAuthenticated) {
@@ -287,9 +302,15 @@
         
         try {
           loading.value = true
-          // 根据当前状态切换点赞/取消点赞
+          // 直接调用更新点赞状态的方法
           await commentStore.toggleLike(props.comment.id, props.comment.isLiked)
-          ElMessage.success(props.comment.isLiked ? '取消点赞成功' : '点赞成功')
+          // 手动更新本地点赞状态
+          props.comment.isLiked = !props.comment.isLiked
+          props.comment.likes = props.comment.isLiked 
+            ? (props.comment.likes || 0) + 1 
+            : Math.max(0, (props.comment.likes || 0) - 1)
+            
+          ElMessage.success(props.comment.isLiked ? '点赞成功' : '取消点赞成功')
           emit('comment-updated')
         } catch (error) {
           console.error('点赞操作失败:', error)
@@ -303,6 +324,12 @@
       const toggleReply = () => {
         if (!userStore.isAuthenticated) {
           ElMessage.warning('请先登录再回复')
+          return
+        }
+        
+        // 不能回复自己的评论
+        if (isCurrentUser.value) {
+          ElMessage.warning('不能回复自己的评论')
           return
         }
         
@@ -321,10 +348,29 @@
         
         try {
           loading.value = true
+          
+          // 获取当前评论ID和用户信息
+          const currentCommentId = props.comment.id;
+          const replyToUsername = props.comment.user ? getUserName(props.comment.user) : '匿名用户';
+          
+          console.log(`回复给评论ID ${currentCommentId} 的用户: ${replyToUsername}`);
+          
+          // 如果是子评论，我们需要找到它的父评论ID
+          // 但我们仍然回复给当前评论的用户
+          let parentId = currentCommentId;  // 默认当前评论
+          if (props.isChild && props.comment.parentId) {
+            // 如果是子评论且有父评论ID，使用父评论ID作为parentId
+            // 这样回复会被正确添加到父评论的子评论列表中
+            parentId = props.comment.parentId;
+            console.log(`这是子评论，使用父评论ID: ${parentId} 作为parentId`);
+          }
+          
+          // 发送回复请求
           await commentStore.replyToComment(
             props.blogId, 
-            props.comment.id, 
-            replyContent.value
+            parentId,          // 父评论ID
+            replyContent.value, // 内容
+            replyToUsername     // 回复给谁
           )
           
           replyContent.value = ''
@@ -465,6 +511,7 @@
         editContent,
         canEdit,
         canDelete,
+        isCurrentUser,
         handleLike,
         toggleReply,
         submitReply,
@@ -670,6 +717,11 @@
   
   .reply-indicator strong {
     color: #409EFF;
+  }
+  
+  .reply-prefix {
+    color: #409EFF;
+    font-weight: 500;
   }
   
   @media (max-width: 768px) {

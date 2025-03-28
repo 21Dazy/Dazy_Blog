@@ -40,6 +40,9 @@ public class Comment {
     @com.fasterxml.jackson.annotation.JsonBackReference(value = "comment-parent")
     private Comment parent;
 
+    @Column(name = "reply_to_username")
+    private String replyToUsername;
+
     @Column(name = "likes", nullable = false, columnDefinition = "INTEGER DEFAULT 0")
     private Integer likes = 0;
 

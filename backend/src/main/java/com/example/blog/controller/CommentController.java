@@ -72,6 +72,7 @@ public class CommentController {
             @PathVariable Long blogId,
             @RequestParam String content,
             @RequestParam(required = false) Long parentId,
+            @RequestParam(required = false) String replyToUsername,
             @RequestHeader("Authorization") String token) {
         try {
             // 从token中获取用户ID
@@ -81,7 +82,7 @@ public class CommentController {
             Comment comment;
             if (parentId != null) {
                 // 创建子评论（回复）
-                comment = commentService.createReply(blogId, userId, content, parentId);
+                comment = commentService.createReply(blogId, userId, content, parentId, replyToUsername);
             } else {
                 // 创建普通评论
                 comment = commentService.createComment(blogId, userId, content);
@@ -90,7 +91,8 @@ public class CommentController {
             // 确保用户信息完整
             if (comment.getUser() != null) {
                 System.out.println("创建评论成功，用户ID: " + comment.getUser().getId() + 
-                    ", 用户名: " + comment.getUser().getUsername());
+                    ", 用户名: " + comment.getUser().getUsername() + 
+                    (replyToUsername != null ? ", 回复给: " + replyToUsername : ""));
             } else {
                 System.err.println("警告：创建的评论没有关联用户信息");
             }

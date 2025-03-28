@@ -166,6 +166,13 @@ public class CommentServiceImpl implements CommentService {
     @Override
     @Transactional
     public Comment createReply(Long blogId, Long userId, String content, Long parentId) {
+        // 调用有replyToUsername参数的方法，传入null
+        return createReply(blogId, userId, content, parentId, null);
+    }
+
+    @Override
+    @Transactional
+    public Comment createReply(Long blogId, Long userId, String content, Long parentId, String replyToUsername) {
         Blog blog = blogRepository.findById(blogId)
                 .orElseThrow(() -> new RuntimeException("博客不存在"));
                 
@@ -185,6 +192,7 @@ public class CommentServiceImpl implements CommentService {
         reply.setUser(user);
         reply.setContent(content);
         reply.setParent(parentComment);  // 设置父评论
+        reply.setReplyToUsername(replyToUsername); // 设置回复用户名
         
         Comment savedReply = commentRepository.save(reply);
         
