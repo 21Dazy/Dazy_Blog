@@ -33,36 +33,69 @@ export const useCommentStore = defineStore('comment', {
       try {
         this.loading = true
         this.error = null
-        console.log('获取博客评论，ID:', blogId, '参数:', params)
+        
+        console.log('获取博客评论，参数:', { blogId, params })
         
         const response = await axios.get(`/api/comments/blog/${blogId}`, {
           params: {
-            page: params.page - 1, // 后端从0开始计数
-            size: params.size
+            page: params.page - 1, // 后端分页从0开始
+            size: params.size,
+            rootOnly: params.rootOnly
           }
         })
         
-        this.comments = response.data.content || []
+        console.log('后端返回的评论数据:', response.data)
         
-        // 为每条评论添加isLiked属性(模拟用户的点赞状态)
-        // 实际上这应该从后端获取
-        const userStore = useUserStore()
-        if (userStore.isAuthenticated) {
-          this.comments.forEach(comment => {
-            comment.isLiked = false // 默认未点赞
-          })
+        let comments = []
+        let total = 0
+        
+        if (response.data.content) {
+          // 分页响应格式
+          comments = response.data.content
+          total = response.data.totalElements
+        } else if (Array.isArray(response.data)) {
+          // 数组响应格式
+          comments = response.data
+          total = response.data.length
+        } else {
+          // 其他响应格式
+          comments = response.data.comments || []
+          total = response.data.total || comments.length
         }
         
+        // 确保每个评论对象具有一致的数据结构
+        comments = comments.map(comment => {
+          // 统一parentId属性，确保前端使用parentId而不是parent_id
+          if (comment.parent && comment.parent.id && !comment.parentId) {
+            comment.parentId = comment.parent.id
+            console.log(`评论ID ${comment.id} 设置parentId=${comment.parentId}`)
+          } else if (comment.parent_id && !comment.parentId) {
+            comment.parentId = comment.parent_id
+            console.log(`评论ID ${comment.id} 从parent_id设置parentId=${comment.parentId}`)
+          }
+          
+          return comment
+        })
+        
+        console.log('处理后的评论数据:', comments)
+        console.log('根评论数量:', comments.filter(c => !c.parentId).length)
+        console.log('子评论数量:', comments.filter(c => c.parentId).length)
+        
+        // 更新状态
+        this.comments = comments
+        this.totalComments = total
+        
         return {
-          comments: this.comments,
-          total: response.data.totalElements || 0,
-          currentPage: response.data.number + 1 || 1, // 后端是从0开始计数的
-          totalPages: response.data.totalPages || 1
+          comments: comments,
+          total: total
         }
       } catch (error) {
         console.error('获取评论失败:', error)
         this.error = error.response?.data?.message || '获取评论失败'
-        throw error
+        return {
+          comments: [],
+          total: 0
+        }
       } finally {
         this.loading = false
       }
@@ -303,7 +336,9 @@ export const useCommentStore = defineStore('comment', {
     async replyToComment(blogId, parentId, content) {
       try {
         this.submitting = true
-        console.log('回复评论，父评论ID:', parentId, '，内容:', content)
+        // 确保parentId是数字类型 
+        const numericParentId = Number(parentId);
+        console.log('回复评论，参数:', { blogId, parentId: numericParentId, content })
         
         // 获取当前用户信息和认证令牌
         const userStore = useUserStore()
@@ -324,7 +359,7 @@ export const useCommentStore = defineStore('comment', {
         const response = await axios.post(`/api/auth/comments/blog/${blogId}`, null, {
           params: {
             content: content,
-            parentId: parentId
+            parentId: numericParentId
           },
           headers: {
             'Authorization': `Bearer ${token}`
@@ -333,24 +368,32 @@ export const useCommentStore = defineStore('comment', {
         
         console.log('评论回复响应:', response.data)
         
+        let commentData = response.data
+        
         // 确保返回的评论包含用户信息
-        if (response.data && !response.data.user) {
+        if (commentData && !commentData.user) {
           console.warn('返回的评论回复数据中没有用户信息，使用当前用户信息')
-          response.data.user = {
+          commentData.user = {
             id: userStore.currentUser.id,
             username: userStore.currentUser.username,
             avatar: userStore.currentUser.avatar
           }
         }
         
-        // 如果需要，在客户端设置父评论关系
-        response.data.parentId = parentId
+        // 明确设置parentId属性，确保前端统一使用parentId，并且是数字类型
+        commentData.parentId = numericParentId
+        console.log(`已设置回复评论ID ${commentData.id} 的parentId=${numericParentId} (${typeof numericParentId})`)
+        
+        // 删除可能存在的parent_id和parent，避免数据不一致
+        if ('parent_id' in commentData) {
+          delete commentData.parent_id;
+        }
         
         // 更新评论列表
-        this.comments.push(response.data)
+        this.comments.push(commentData)
         this.totalComments++
         
-        return response.data
+        return commentData
       } catch (error) {
         console.error('回复评论失败:', error)
         this.error = error.response?.data?.message || '回复评论失败'
@@ -370,28 +413,71 @@ export const useCommentStore = defineStore('comment', {
       try {
         this.loading = true
         this.error = null
-        console.log('获取父评论的子评论，父评论ID:', parentId)
         
-        const response = await axios.get(`/api/comments/parent/${parentId}`)
+        // 确保parentId是数字类型
+        const numericParentId = Number(parentId);
+        console.log('获取父评论的子评论，父评论ID:', numericParentId, '(', typeof numericParentId, ')');
         
-        const childComments = response.data.content || response.data || []
+        const response = await axios.get(`/api/comments/parent/${numericParentId}`);
+        console.log('子评论API响应:', response.data);
+        
+        let childComments = response.data.content || response.data || [];
+        console.log(`获取到 ${childComments.length} 条子评论`);
+        
+        // 处理子评论数据，确保ID和parentId字段为数字类型
+        childComments = childComments.map(comment => {
+          // 设置ID为数字类型
+          if (comment.id !== undefined) {
+            comment.id = Number(comment.id);
+          }
+          
+          // 统一设置parentId为当前父评论ID
+          comment.parentId = numericParentId;
+          
+          // 如果有parent对象，确保parent.id也是数字类型
+          if (comment.parent && comment.parent.id !== undefined) {
+            comment.parent.id = Number(comment.parent.id);
+          }
+          
+          // 如果有parent_id，统一到parentId并删除parent_id
+          if (comment.parent_id !== undefined) {
+            comment.parentId = Number(comment.parent_id);
+            delete comment.parent_id;
+          }
+          
+          return comment;
+        });
+        
+        console.log('处理后的子评论:', childComments);
         
         // 将获取的子评论添加到全局评论列表中
         // 先过滤掉已存在的子评论（基于ID）
-        const existingIds = this.comments.map(c => c.id)
-        const newChildComments = childComments.filter(c => !existingIds.includes(c.id))
+        const existingIds = this.comments.map(c => Number(c.id));
+        const newChildComments = childComments.filter(c => !existingIds.includes(Number(c.id)));
         
         if (newChildComments.length > 0) {
-          this.comments = [...this.comments, ...newChildComments]
+          console.log(`添加 ${newChildComments.length} 条新子评论到全局评论列表`);
+          this.comments = [...this.comments, ...newChildComments];
+        } else if (childComments.length > 0) {
+          console.log('所有子评论已存在于全局评论列表中，更新现有评论');
+          // 更新现有评论的父子关系
+          this.comments = this.comments.map(comment => {
+            const matchingChild = childComments.find(c => Number(c.id) === Number(comment.id));
+            if (matchingChild) {
+              console.log(`更新评论ID ${comment.id} 的parentId为 ${numericParentId}`);
+              return { ...comment, parentId: numericParentId };
+            }
+            return comment;
+          });
         }
         
-        return childComments
+        return childComments;
       } catch (error) {
-        console.error('获取子评论失败:', error)
-        this.error = error.response?.data?.message || '获取子评论失败'
-        return []
+        console.error('获取子评论失败:', error);
+        this.error = error.response?.data?.message || '获取子评论失败';
+        return [];
       } finally {
-        this.loading = false
+        this.loading = false;
       }
     }
   }
