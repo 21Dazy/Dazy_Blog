@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  # MySQL数据库
+  mysql:
+    image: mysql:8.0
+    container_name: blog-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: yby258014
+      MYSQL_DATABASE: blog
+      MYSQL_USER: bloguser
+      MYSQL_PASSWORD: blogpassword
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./backend/src/main/resources/db:/docker-entrypoint-initdb.d
+    ports:
+      - "3306:3306"
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 后端服务
+  backend:
+    build: ./backend
+    container_name: blog-backend
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/blog?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf8
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: yby258014
+      FILE_UPLOAD_DIR: /app/uploads
+    volumes:
+      - blog-uploads:/app/uploads
+    ports:
+      - "8080:8080"
+
+  # 前端服务
+  frontend:
+    build: ./frontend
+    container_name: blog-frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./ssl:/etc/nginx/ssl:ro
+
+volumes:
+  mysql-data:
+  blog-uploads: 
