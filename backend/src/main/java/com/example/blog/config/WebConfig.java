@@ -70,8 +70,6 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                // 不使用*，使用特定的起源列表
-                .allowedOriginPatterns("http://localhost:8082", "http://127.0.0.1:8082")
                 .allowedMethods(allowedMethods.split(","))
                 .allowedHeaders(allowedHeaders.split(","))
                 .allowCredentials(allowCredentials)
